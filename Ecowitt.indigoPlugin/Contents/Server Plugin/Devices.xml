@@ -94,10 +94,10 @@
                 <TriggerLabel>Vapour Pressure Deficit (kPa)</TriggerLabel>
                 <ControlPageLabel>VPD kPa</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>
@@ -226,10 +226,10 @@
                 <TriggerLabel>Wind Chill</TriggerLabel>
                 <ControlPageLabel>Wind Chill</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>
@@ -312,10 +312,10 @@
                 <TriggerLabel>Rain Unit</TriggerLabel>
                 <ControlPageLabel>Rain Unit</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>
@@ -409,10 +409,10 @@
                 <TriggerLabel>Humidity %</TriggerLabel>
                 <ControlPageLabel>Humidity</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>
@@ -460,10 +460,10 @@
                 <TriggerLabel>Moisture Unit</TriggerLabel>
                 <ControlPageLabel>Unit</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="lastUpdate">
                 <ValueType>String</ValueType>
@@ -526,10 +526,10 @@
                 <TriggerLabel>CO2 Unit</TriggerLabel>
                 <ControlPageLabel>CO2 Unit</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>
@@ -582,10 +582,10 @@
                 <TriggerLabel>Last Strike Time</TriggerLabel>
                 <ControlPageLabel>Last Strike</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>
@@ -633,10 +633,10 @@
                 <TriggerLabel>Leak Detected</TriggerLabel>
                 <ControlPageLabel>Leak</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>
@@ -690,10 +690,10 @@
                 <TriggerLabel>Tank Height (mm)</TriggerLabel>
                 <ControlPageLabel>Tank Height mm</ControlPageLabel>
             </State>
-            <State id="batteryLevel">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Battery Level</TriggerLabel>
-                <ControlPageLabel>Battery</ControlPageLabel>
+            <State id="battery">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Battery %</TriggerLabel>
+                <ControlPageLabel>Battery %</ControlPageLabel>
             </State>
             <State id="batteryLow">
                 <ValueType>Boolean</ValueType>

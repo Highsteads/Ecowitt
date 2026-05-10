@@ -7,8 +7,29 @@
 #              Aercus Instruments, Bresser and other brands using the same protocol.
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Sonnet 4.6
-# Date:        27-03-2026
-# Version:     2.0.0
+# Date:        10-05-2026
+# Version:     2.1.0
+#
+# v2.1.0 (10-05-2026):
+# - CRITICAL fix: rename custom state `batteryLevel` -> `battery` (Integer).
+#   `batteryLevel` collided with Indigo's reserved native device property and
+#   silently routed every battery write to the wrong slot, so the Custom
+#   States panel never showed a battery percentage and the device list showed
+#   0% / 1% (raw 0/1 binary flags from wh65batt etc).
+# - New helper `battery_to_percent` correctly maps Ecowitt's two battery
+#   encodings to a 0-100 integer:
+#     * binary flag (0 = OK, 1 = Low) -> 100% / 0%
+#     * voltage (e.g. 1.5V) -> linear interpolation between 1.2V and 1.6V
+#   `is_low` and the Pushover low-battery alert are now driven by the
+#   normalised percentage, not the raw payload value (the previous threshold
+#   comparison treated voltage 1.5V as "below 20%" and triggered constant
+#   low-battery alerts on healthy soil/leak/PM2.5 sensors).
+# - Capture all Ecowitt payload fields as dynamic states on the Main Gateway
+#   device.  Anything sent by the gateway that isn't already mapped to a
+#   typed sub-device (Outdoor, Indoor, Wind, Rain, Solar, Soil, PM2.5, etc.)
+#   appears here with a sanitised camelCase name.  See _capture_raw_fields().
+# - Plugin version is now read dynamically from Info.plist (self.pluginVersion);
+#   no separate Python constant.
 
 import indigo
 import math
@@ -177,6 +198,30 @@ def calculate_vpd(temp_c, humidity_pct):
         return str(round(max(0.0, vpd), 2))
     except Exception:
         return "0.0"
+
+
+def battery_to_percent(raw_value):
+    """Normalise an Ecowitt battery payload field into a 0-100 percentage.
+
+    Ecowitt uses two encodings depending on the sensor:
+      * Binary flag (0 = OK, 1 = Low) — wh65batt, wh26batt, wh25batt, wh40batt,
+        wh57batt, pm25batt1-4, leakbatt1-4, etc.
+      * Voltage in volts (typical 1.2V flat / 1.6V full) — soilbatt1-16,
+        tf_batt1-8, tempfbatt1-8, wh34batt1-8, wh35batt1-8, lds_batt, etc.
+
+    Returns a 0-100 integer percentage suitable for Indigo's native batteryLevel
+    property and our own `battery` custom state.
+    """
+    try:
+        v = float(raw_value)
+    except (TypeError, ValueError):
+        return 0
+    if v <= 1.0:
+        # Binary: 0 = OK -> 100%, 1 = Low -> 0%
+        return 100 if v == 0 else 0
+    # Voltage: linear interpolation between 1.2V (dead) and 1.6V (full)
+    pct = (v - 1.2) / 0.4 * 100.0
+    return max(0, min(100, int(round(pct))))
 
 
 # ==============================================================================
@@ -509,8 +554,187 @@ class Plugin(indigo.PluginBase):
             self.last_update_time[dev.id] = now
             self.stale_warned[dev.id]     = False
 
+            # Catch-all: import every other payload field as a dynamic state on
+            # the Main Gateway, so the Custom States panel surfaces ALL Ecowitt
+            # data — including new fields added by future Ecowitt firmware
+            # releases that this plugin doesn't yet know about.
+            self._capture_raw_fields(dev, data)
+
         except Exception as e:
             log(f"Error updating main device: {e}", "ERROR")
+
+    # ------------------------------------------------------------------
+    # Dynamic-state catch-all (Main Gateway only)
+    # ------------------------------------------------------------------
+    # Ecowitt gateways send a moving target of fields depending on which
+    # sensors are paired and the firmware version.  Hardcoding every key
+    # in Devices.xml is a losing battle.  Instead, the plugin keeps a
+    # per-device union of "fields seen so far" in pluginProps and exposes
+    # every one as a dynamic Indigo state via getDeviceStateList().
+    #
+    # Three undocumented Indigo rules govern this (all caught the hard
+    # way during Zigbee2MQTTBridge v1.7 development):
+    #   1. State IDs must be camelCase ASCII (no underscores, despite
+    #      XML allowing them).
+    #   2. PluginProps keys cannot start with `_` (XML serialiser).
+    #   3. PluginBase.getDeviceStateList returns a LIVE list reference;
+    #      mutate a copy, never the original.
+    # The helpers below honour all three.
+
+    # Payload keys already handled by the curated typed-device updaters.
+    # Anything in this set is NOT captured as a dynamic state — it is
+    # surfaced on the typed sub-device with a friendly name and unit
+    # conversion already applied.
+    _MAIN_HANDLED_KEYS = {
+        # Main device's own fields
+        "stationtype", "model", "freq", "PASSKEY", "dateutc", "runtime",
+        "interval",
+        # Outdoor
+        "tempf", "humidity", "dewptf",
+        # Indoor
+        "tempinf", "humidityin", "baromabsin", "baromrelin",
+        # Wind
+        "windspeedmph", "winddir", "windgustmph", "maxdailygust",
+        "windspdmph_avg10m", "winddir_avg10m",
+        # Rain
+        "rainratein", "eventrainin", "hourlyrainin", "dailyrainin",
+        "weeklyrainin", "monthlyrainin", "yearlyrainin", "totalrainin",
+        # Solar / UV
+        "solarradiation", "uv",
+        # Lightning
+        "lightning_num", "lightning_time", "lightning",
+        # Battery flags handled per-typed-device
+        "wh65batt", "wh25batt", "wh26batt", "wh40batt", "wh57batt",
+        "wh68batt", "wh80batt", "wh90batt",
+    }
+
+    def _sanitise_state_key(self, key):
+        """snake_case / mixed payload field name -> Indigo-safe camelCase ASCII.
+
+        Indigo's XML serialiser rejects underscores, leading digits, leading
+        underscores, and non-ASCII letters in state IDs.  We split on every
+        non-alphanumeric and rebuild as camelCase.
+        """
+        if not key:
+            return ""
+        parts, cur = [], []
+        for c in key:
+            if c.isascii() and c.isalnum():
+                cur.append(c)
+            else:
+                if cur:
+                    parts.append("".join(cur))
+                    cur = []
+        if cur:
+            parts.append("".join(cur))
+        if not parts:
+            return ""
+        sk = parts[0][0].lower() + parts[0][1:] + "".join(p[:1].upper() + p[1:] for p in parts[1:])
+        if not sk[0].isalpha():
+            sk = "z" + sk[:1].upper() + sk[1:]
+        # Avoid Indigo's reserved native property names
+        if sk in ("batteryLevel", "brightnessLevel", "onOffState", "sensorValue"):
+            sk = "ec" + sk[:1].upper() + sk[1:]
+        return sk
+
+    def _is_valid_state_id(self, key):
+        if not key or not key[0].isascii() or not key[0].isalpha():
+            return False
+        return all(c.isascii() and c.isalnum() for c in key)
+
+    def _capture_raw_fields(self, dev, data):
+        """Persist any Ecowitt payload field not already handled as a dynamic state."""
+        if not isinstance(data, dict):
+            return
+        seen_csv = dev.pluginProps.get("seenDynamicKeys", "")
+        seen = set(s for s in seen_csv.split(",") if s and self._is_valid_state_id(s))
+
+        # Phase 1: identify pending writes + new keys (no I/O yet)
+        pending = []      # [(state_key, state_val), ...]
+        new_keys = []
+        for raw_key, raw_val in data.items():
+            if raw_key in self._MAIN_HANDLED_KEYS:
+                continue
+            if raw_val is None or raw_val == "":
+                continue
+            state_key = self._sanitise_state_key(raw_key)
+            if not state_key or not self._is_valid_state_id(state_key):
+                continue
+            # Coerce
+            try:
+                fv = float(raw_val)
+                state_val = fv if "." in str(raw_val) else int(fv)
+            except (TypeError, ValueError):
+                state_val = str(raw_val)[:512]
+            pending.append((state_key, state_val))
+            if state_key not in seen:
+                seen.add(state_key)
+                new_keys.append(state_key)
+
+        # Phase 2: declare new keys BEFORE writing them (avoids one-off
+        # "state key not defined" errors on first encounter).
+        if new_keys:
+            try:
+                new_props = dict(dev.pluginProps)
+                new_props["seenDynamicKeys"] = ",".join(sorted(seen))
+                dev.replacePluginPropsOnServer(new_props)
+                indigo.devices[dev.id].stateListOrDisplayStateIdChanged()
+                log(f"Main Gateway: imported {len(new_keys)} new field(s): {new_keys}")
+            except Exception as e:
+                log(f"Main Gateway: dynamic-state refresh failed; rolling back. err={e}; "
+                    f"new_keys={new_keys}", "ERROR")
+                try:
+                    rollback = dict(dev.pluginProps)
+                    rollback["seenDynamicKeys"] = seen_csv
+                    dev.replacePluginPropsOnServer(rollback)
+                except Exception:
+                    pass
+                return
+
+        # Phase 3: write all values (state IDs are now declared)
+        for state_key, state_val in pending:
+            try:
+                dev.updateStateOnServer(state_key, state_val)
+            except Exception as e:
+                if self.debug:
+                    log(f"Main Gateway: dynamic state '{state_key}' write failed: {e}", "WARNING")
+
+    def getDeviceStateList(self, dev):
+        """Add dynamic states to the Main Gateway state list."""
+        original = indigo.PluginBase.getDeviceStateList(self, dev)
+        if original is None or dev.deviceTypeId != DEVICE_TYPE_MAIN:
+            return original
+        # IMPORTANT: original is a LIVE reference to the parser's internal
+        # cache.  Working on a list() copy avoids permanent corruption.
+        state_list = list(original)
+        seen_csv = dev.pluginProps.get("seenDynamicKeys", "")
+        if not seen_csv:
+            return state_list
+        existing = set()
+        try:
+            for s in state_list:
+                k = s.get("Key") if hasattr(s, "get") else s["Key"]
+                if k:
+                    existing.add(k)
+        except Exception:
+            existing = set()
+        for key in seen_csv.split(","):
+            key = key.strip()
+            if not key or key in existing or not self._is_valid_state_id(key):
+                continue
+            label = key[:1].upper() + key[1:]
+            current = dev.states.get(key) if hasattr(dev, "states") else None
+            try:
+                if isinstance(current, bool):
+                    state_list.append(self.getDeviceStateDictForBoolTrueFalseType(key, label, label))
+                elif isinstance(current, (int, float)):
+                    state_list.append(self.getDeviceStateDictForNumberType(key, label, label))
+                else:
+                    state_list.append(self.getDeviceStateDictForStringType(key, label, label))
+                existing.add(key)
+            except Exception:
+                continue
+        return state_list
 
 
     def update_outdoor_device(self, data):
@@ -541,9 +765,10 @@ class Plugin(indigo.PluginBase):
             # Battery — HP2561 may report wh65batt, wh25batt, or wh26batt
             for batt_key in ('wh65batt', 'wh25batt', 'wh26batt'):
                 if batt_key in data:
-                    batt_level = int(data[batt_key])
-                    is_low     = batt_level <= self.battery_threshold
-                    states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
+                    batt_pct   = battery_to_percent(batt_level)
+                    is_low     = batt_pct <= self.battery_threshold
+                    states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
                     if is_low:
                         self.check_battery_alert(dev, "outdoor sensor")
@@ -629,9 +854,10 @@ class Plugin(indigo.PluginBase):
             # Battery — covers WS80, WS90, WS85, WS68 variants
             for batt_key in ('wh80batt', 'ws90batt', 'ws85batt', 'wh68batt'):
                 if batt_key in data:
-                    batt_level = int(data[batt_key])
-                    is_low     = batt_level <= self.battery_threshold
-                    states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
+                    batt_pct   = battery_to_percent(batt_level)
+                    is_low     = batt_pct <= self.battery_threshold
+                    states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
                     if is_low:
                         self.check_battery_alert(dev, "wind sensor")
@@ -676,8 +902,9 @@ class Plugin(indigo.PluginBase):
 
             if 'wh40batt' in data:
                 batt_level = int(data['wh40batt'])
-                is_low     = batt_level <= self.battery_threshold
-                states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                batt_pct   = battery_to_percent(batt_level)
+                is_low     = batt_pct <= self.battery_threshold
+                states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
                 if is_low:
                     self.check_battery_alert(dev, "rain sensor")
@@ -747,9 +974,10 @@ class Plugin(indigo.PluginBase):
                     states.append({'key': 'humidity', 'value': str(data[hum_key])})
 
                 if batt_key in data:
-                    batt_level = int(data[batt_key])
-                    is_low     = batt_level <= self.battery_threshold
-                    states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
+                    batt_pct   = battery_to_percent(batt_level)
+                    is_low     = batt_pct <= self.battery_threshold
+                    states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
                     if is_low:
                         self.check_battery_alert(dev, f"multi-channel sensor {ch}")
@@ -786,8 +1014,9 @@ class Plugin(indigo.PluginBase):
                 ]
 
                 if batt_key in data:
-                    batt_level = int(float(data[batt_key]))
-                    states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                    # soilbatt* is voltage (e.g. 1.5) — keep as float, don't truncate
+                    batt_pct = battery_to_percent(data[batt_key])
+                    states.append({'key': 'battery', 'value': batt_pct})
 
                 states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
                 states.append({'key': 'deviceOnline', 'value': True})
@@ -825,9 +1054,10 @@ class Plugin(indigo.PluginBase):
                     states.append({'key': 'pm25_24h', 'value': str(data[pm_avg_key])})
 
                 if batt_key in data:
-                    batt_level = int(data[batt_key])
-                    is_low     = batt_level <= self.battery_threshold
-                    states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
+                    batt_pct   = battery_to_percent(batt_level)
+                    is_low     = batt_pct <= self.battery_threshold
+                    states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
                     if is_low:
                         self.check_battery_alert(dev, f"PM2.5 sensor {sensor}")
@@ -883,8 +1113,9 @@ class Plugin(indigo.PluginBase):
 
             if 'wh57batt' in data:
                 batt_level = int(data['wh57batt'])
-                is_low     = batt_level <= self.battery_threshold
-                states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                batt_pct   = battery_to_percent(batt_level)
+                is_low     = batt_pct <= self.battery_threshold
+                states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
                 if is_low:
                     self.check_battery_alert(dev, "lightning sensor")
@@ -924,9 +1155,10 @@ class Plugin(indigo.PluginBase):
                 ]
 
                 if batt_key in data:
-                    batt_level = int(data[batt_key])
-                    is_low     = batt_level <= self.battery_threshold
-                    states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
+                    batt_pct   = battery_to_percent(batt_level)
+                    is_low     = batt_pct <= self.battery_threshold
+                    states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
                     if is_low:
                         self.check_battery_alert(dev, f"leak sensor {sensor}")
@@ -977,8 +1209,9 @@ class Plugin(indigo.PluginBase):
 
             if 'ldsbatt' in data:
                 batt_level = int(data['ldsbatt'])
-                is_low     = batt_level <= self.battery_threshold
-                states.append({'key': 'batteryLevel', 'value': str(batt_level)})
+                batt_pct   = battery_to_percent(batt_level)
+                is_low     = batt_pct <= self.battery_threshold
+                states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
                 if is_low:
                     self.check_battery_alert(dev, "water level sensor")
@@ -1241,6 +1474,17 @@ class Plugin(indigo.PluginBase):
 
     def deviceStartComm(self, dev):
         log(f"Device started: {dev.name}")
+        # Re-pull the state schema from Devices.xml.  Existing devices created
+        # before a Devices.xml schema change still have the old state slots in
+        # the Indigo database, so a write to a newly-renamed state (e.g. v2.1.0
+        # rename batteryLevel -> battery) raises "state key not defined" until
+        # the device's slots are refreshed.  Calling stateListOrDisplay here
+        # makes the new schema take effect immediately on plugin reload.
+        try:
+            dev.stateListOrDisplayStateIdChanged()
+        except Exception as e:
+            if self.debug:
+                log(f"{dev.name}: stateListOrDisplay refresh failed: {e}", "WARNING")
         try:
             dev.updateStateOnServer("deviceOnline", True)
         except Exception:
