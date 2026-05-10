@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<MenuItems>
+
+    <!-- Toggle [HH:MM:SS] timestamp prefix on all log output -->
+    <MenuItem id="toggleTimestampLogging">
+        <Name>Toggle Timestamp Logging</Name>
+        <CallbackMethod>toggleTimestampLogging</CallbackMethod>
+    </MenuItem>
+
+    <!-- Enable / disable Pushover battery low alerts -->
+    <MenuItem id="togglePushoverAlerts">
+        <Name>Toggle Pushover Battery Alerts</Name>
+        <CallbackMethod>togglePushoverAlerts</CallbackMethod>
+    </MenuItem>
+
+    <!-- Enable / disable LDS01/LDS04 water level sensor support -->
+    <MenuItem id="toggleLDSSensor">
+        <Name>Toggle LDS01 Water Level Sensor</Name>
+        <CallbackMethod>toggleLDSSensor</CallbackMethod>
+    </MenuItem>
+
+    <MenuItem id="menuSeparator1" isSeparator="true"/>
+
+    <!-- Display current plugin configuration and status to the log -->
+    <MenuItem id="showPluginStatus">
+        <Name>Show Plugin Status</Name>
+        <CallbackMethod>showPluginStatus</CallbackMethod>
+    </MenuItem>
+
+    <!-- Re-process last received gateway payload to refresh all device states -->
+    <MenuItem id="refreshAllDevices">
+        <Name>Refresh All Devices</Name>
+        <CallbackMethod>refreshAllDevices</CallbackMethod>
+    </MenuItem>
+
+</MenuItems>

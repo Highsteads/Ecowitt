@@ -1,0 +1,887 @@
+<?xml version="1.0"?>
+<Devices>
+
+    <!-- ============================================================== -->
+    <!-- Main Gateway Device                                            -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittMain">
+        <Name>Ecowitt Main Gateway</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="stationType">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Station Type</TriggerLabel>
+                <ControlPageLabel>Station Type</ControlPageLabel>
+            </State>
+            <State id="model">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Model</TriggerLabel>
+                <ControlPageLabel>Model</ControlPageLabel>
+            </State>
+            <State id="frequency">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Frequency</TriggerLabel>
+                <ControlPageLabel>Frequency</ControlPageLabel>
+            </State>
+            <State id="passkey">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Pass Key</TriggerLabel>
+                <ControlPageLabel>Pass Key</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="runtime">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Runtime</TriggerLabel>
+                <ControlPageLabel>Runtime</ControlPageLabel>
+            </State>
+            <State id="interval">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Update Interval</TriggerLabel>
+                <ControlPageLabel>Update Interval</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>lastUpdate</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Outdoor Temperature / Humidity Sensor                          -->
+    <!-- Sensors: WH65, WH32, WN32, WH25, WH26                         -->
+    <!-- HP2561: integrated 7-in-1 outdoor array                        -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittOutdoor">
+        <Name>Ecowitt Outdoor Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="temperature">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Temperature</TriggerLabel>
+                <ControlPageLabel>Temperature</ControlPageLabel>
+            </State>
+            <State id="temperatureUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Temperature Unit</TriggerLabel>
+                <ControlPageLabel>Temp Unit</ControlPageLabel>
+            </State>
+            <State id="humidity">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Humidity %</TriggerLabel>
+                <ControlPageLabel>Humidity</ControlPageLabel>
+            </State>
+            <State id="dewPoint">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Dew Point</TriggerLabel>
+                <ControlPageLabel>Dew Point</ControlPageLabel>
+            </State>
+            <State id="vpd">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Vapour Pressure Deficit (kPa)</TriggerLabel>
+                <ControlPageLabel>VPD kPa</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>temperature</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Indoor Temperature / Humidity / Pressure                       -->
+    <!-- Source: gateway built-in sensor (HP2561 console)               -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittIndoor">
+        <Name>Ecowitt Indoor Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="temperature">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Temperature</TriggerLabel>
+                <ControlPageLabel>Temperature</ControlPageLabel>
+            </State>
+            <State id="temperatureUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Temperature Unit</TriggerLabel>
+                <ControlPageLabel>Temp Unit</ControlPageLabel>
+            </State>
+            <State id="humidity">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Humidity %</TriggerLabel>
+                <ControlPageLabel>Humidity</ControlPageLabel>
+            </State>
+            <State id="pressureAbsolute">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Absolute Pressure</TriggerLabel>
+                <ControlPageLabel>Abs Pressure</ControlPageLabel>
+            </State>
+            <State id="pressureAbsoluteUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Absolute Pressure Unit</TriggerLabel>
+                <ControlPageLabel>Abs Pressure Unit</ControlPageLabel>
+            </State>
+            <State id="pressureRelative">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Relative Pressure</TriggerLabel>
+                <ControlPageLabel>Rel Pressure</ControlPageLabel>
+            </State>
+            <State id="pressureRelativeUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Relative Pressure Unit</TriggerLabel>
+                <ControlPageLabel>Rel Pressure Unit</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>temperature</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Wind Sensor                                                     -->
+    <!-- Sensors: WH68, WS80, WS85, WS90 (or integrated on HP2561)     -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittWind">
+        <Name>Ecowitt Wind Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="windSpeed">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Wind Speed</TriggerLabel>
+                <ControlPageLabel>Wind Speed</ControlPageLabel>
+            </State>
+            <State id="windSpeedUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Wind Speed Unit</TriggerLabel>
+                <ControlPageLabel>Speed Unit</ControlPageLabel>
+            </State>
+            <State id="windDirection">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Wind Direction (degrees)</TriggerLabel>
+                <ControlPageLabel>Wind Dir</ControlPageLabel>
+            </State>
+            <State id="windDirectionCardinal">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Wind Direction Cardinal</TriggerLabel>
+                <ControlPageLabel>Wind Cardinal</ControlPageLabel>
+            </State>
+            <State id="windGust">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Wind Gust</TriggerLabel>
+                <ControlPageLabel>Gust</ControlPageLabel>
+            </State>
+            <State id="maxDailyGust">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Max Daily Gust</TriggerLabel>
+                <ControlPageLabel>Max Daily Gust</ControlPageLabel>
+            </State>
+            <State id="windChill">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Wind Chill</TriggerLabel>
+                <ControlPageLabel>Wind Chill</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>windSpeed</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Rain Sensor                                                     -->
+    <!-- Sensors: WH40, WH80, WS90 (or integrated on HP2561)           -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittRain">
+        <Name>Ecowitt Rain Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="rainRate">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Rain Rate</TriggerLabel>
+                <ControlPageLabel>Rain Rate</ControlPageLabel>
+            </State>
+            <State id="rainRateUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Rain Rate Unit</TriggerLabel>
+                <ControlPageLabel>Rate Unit</ControlPageLabel>
+            </State>
+            <State id="rainEvent">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Rain Event Total</TriggerLabel>
+                <ControlPageLabel>Event Rain</ControlPageLabel>
+            </State>
+            <State id="rainHourly">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Hourly Rain</TriggerLabel>
+                <ControlPageLabel>Hourly Rain</ControlPageLabel>
+            </State>
+            <State id="rainDaily">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Daily Rain</TriggerLabel>
+                <ControlPageLabel>Daily Rain</ControlPageLabel>
+            </State>
+            <State id="rainWeekly">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Weekly Rain</TriggerLabel>
+                <ControlPageLabel>Weekly Rain</ControlPageLabel>
+            </State>
+            <State id="rainMonthly">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Monthly Rain</TriggerLabel>
+                <ControlPageLabel>Monthly Rain</ControlPageLabel>
+            </State>
+            <State id="rainYearly">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Yearly Rain</TriggerLabel>
+                <ControlPageLabel>Yearly Rain</ControlPageLabel>
+            </State>
+            <State id="rainTotal">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Total Rain (all time)</TriggerLabel>
+                <ControlPageLabel>Total Rain</ControlPageLabel>
+            </State>
+            <State id="rainUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Rain Unit</TriggerLabel>
+                <ControlPageLabel>Rain Unit</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>rainDaily</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Solar Radiation / UV Index Sensor                              -->
+    <!-- Integrated on HP2561, WS80, WS90, WS68, WS85               -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittSolar">
+        <Name>Ecowitt Solar/UV Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="solarRadiation">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Solar Radiation (W/m2)</TriggerLabel>
+                <ControlPageLabel>Solar</ControlPageLabel>
+            </State>
+            <State id="solarUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Solar Unit</TriggerLabel>
+                <ControlPageLabel>Solar Unit</ControlPageLabel>
+            </State>
+            <State id="uvIndex">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>UV Index (0-15)</TriggerLabel>
+                <ControlPageLabel>UV Index</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>uvIndex</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Multi-Channel Temperature / Humidity Sensor                    -->
+    <!-- Sensor: WH31 / WN31 (up to 8 channels)                        -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittMultiChannel">
+        <Name>Ecowitt Multi-Channel Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="channel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Channel Number</TriggerLabel>
+                <ControlPageLabel>Channel</ControlPageLabel>
+            </State>
+            <State id="temperature">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Temperature</TriggerLabel>
+                <ControlPageLabel>Temperature</ControlPageLabel>
+            </State>
+            <State id="temperatureUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Temperature Unit</TriggerLabel>
+                <ControlPageLabel>Temp Unit</ControlPageLabel>
+            </State>
+            <State id="humidity">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Humidity %</TriggerLabel>
+                <ControlPageLabel>Humidity</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>temperature</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Soil Moisture Sensor                                           -->
+    <!-- Sensor: WH51 (up to 8 channels)                               -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittSoil">
+        <Name>Ecowitt Soil Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="sensorNumber">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Sensor Number</TriggerLabel>
+                <ControlPageLabel>Sensor</ControlPageLabel>
+            </State>
+            <State id="moisture">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Soil Moisture %</TriggerLabel>
+                <ControlPageLabel>Moisture</ControlPageLabel>
+            </State>
+            <State id="moistureUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Moisture Unit</TriggerLabel>
+                <ControlPageLabel>Unit</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>moisture</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- PM2.5 Air Quality Sensor                                       -->
+    <!-- Sensors: WH41, WH43 (PM2.5 only), WH45 (PM2.5+PM10+CO2)      -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittPM25">
+        <Name>Ecowitt PM2.5 Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="sensorNumber">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Sensor Number</TriggerLabel>
+                <ControlPageLabel>Sensor</ControlPageLabel>
+            </State>
+            <State id="pm25">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>PM2.5 (ug/m3)</TriggerLabel>
+                <ControlPageLabel>PM2.5</ControlPageLabel>
+            </State>
+            <State id="pm25Unit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>PM2.5 Unit</TriggerLabel>
+                <ControlPageLabel>PM2.5 Unit</ControlPageLabel>
+            </State>
+            <State id="pm25_24h">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>PM2.5 24h Average</TriggerLabel>
+                <ControlPageLabel>PM2.5 24h</ControlPageLabel>
+            </State>
+            <State id="pm10">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>PM10 (ug/m3)</TriggerLabel>
+                <ControlPageLabel>PM10</ControlPageLabel>
+            </State>
+            <State id="co2">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>CO2 (ppm)</TriggerLabel>
+                <ControlPageLabel>CO2 ppm</ControlPageLabel>
+            </State>
+            <State id="co2Unit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>CO2 Unit</TriggerLabel>
+                <ControlPageLabel>CO2 Unit</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>pm25</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Lightning Detector                                             -->
+    <!-- Sensor: WH57                                                   -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittLightning">
+        <Name>Ecowitt Lightning Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="strikeCount">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Lightning Strike Count</TriggerLabel>
+                <ControlPageLabel>Strikes</ControlPageLabel>
+            </State>
+            <State id="distance">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Lightning Distance</TriggerLabel>
+                <ControlPageLabel>Distance</ControlPageLabel>
+            </State>
+            <State id="distanceUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Distance Unit</TriggerLabel>
+                <ControlPageLabel>Dist Unit</ControlPageLabel>
+            </State>
+            <State id="lastStrike">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Strike Time</TriggerLabel>
+                <ControlPageLabel>Last Strike</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>strikeCount</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- Water Leak Sensor                                              -->
+    <!-- Sensor: WH55 (up to 4 channels)                               -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittLeak">
+        <Name>Ecowitt Leak Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="sensorNumber">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Sensor Number</TriggerLabel>
+                <ControlPageLabel>Sensor</ControlPageLabel>
+            </State>
+            <State id="leakStatus">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Leak Status</TriggerLabel>
+                <ControlPageLabel>Leak Status</ControlPageLabel>
+            </State>
+            <State id="leakDetected">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Leak Detected</TriggerLabel>
+                <ControlPageLabel>Leak</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>leakStatus</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- LDS01 / LDS04 (WH54) Laser Distance / Water Level Sensor       -->
+    <!-- Enable via Plugin menu: "Toggle LDS01 Water Level Sensor"      -->
+    <!-- Configure tank height in Plugin Preferences (mm)               -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittLDS">
+        <Name>Ecowitt Water Level Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="distanceMm">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Distance to Surface (mm)</TriggerLabel>
+                <ControlPageLabel>Distance mm</ControlPageLabel>
+            </State>
+            <State id="waterLevelMm">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Water Level (mm)</TriggerLabel>
+                <ControlPageLabel>Level mm</ControlPageLabel>
+            </State>
+            <State id="waterLevelPct">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Water Level (%)</TriggerLabel>
+                <ControlPageLabel>Level %</ControlPageLabel>
+            </State>
+            <State id="tankHeightMm">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Tank Height (mm)</TriggerLabel>
+                <ControlPageLabel>Tank Height mm</ControlPageLabel>
+            </State>
+            <State id="batteryLevel">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Battery Level</TriggerLabel>
+                <ControlPageLabel>Battery</ControlPageLabel>
+            </State>
+            <State id="batteryLow">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Battery Low</TriggerLabel>
+                <ControlPageLabel>Batt Low</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>waterLevelPct</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- WH46 7-in-1 Indoor Air Quality Sensor                          -->
+    <!-- Reports: PM1, PM2.5, PM4, PM10, CO2, temperature, humidity     -->
+    <!-- Identified by presence of pm1_co2 or pm4_co2 fields            -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittWH46">
+        <Name>Ecowitt WH46 Air Quality</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="pm1">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>PM1 (ug/m3)</TriggerLabel>
+                <ControlPageLabel>PM1</ControlPageLabel>
+            </State>
+            <State id="pm25">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>PM2.5 (ug/m3)</TriggerLabel>
+                <ControlPageLabel>PM2.5</ControlPageLabel>
+            </State>
+            <State id="pm4">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>PM4 (ug/m3)</TriggerLabel>
+                <ControlPageLabel>PM4</ControlPageLabel>
+            </State>
+            <State id="pm10">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>PM10 (ug/m3)</TriggerLabel>
+                <ControlPageLabel>PM10</ControlPageLabel>
+            </State>
+            <State id="co2">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>CO2 (ppm)</TriggerLabel>
+                <ControlPageLabel>CO2 ppm</ControlPageLabel>
+            </State>
+            <State id="temperature">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Temperature</TriggerLabel>
+                <ControlPageLabel>Temperature</ControlPageLabel>
+            </State>
+            <State id="humidity">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Humidity %</TriggerLabel>
+                <ControlPageLabel>Humidity</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>co2</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- WH52 Soil Moisture + Temperature + EC Sensor (3-in-1)          -->
+    <!-- Identified by presence of soilec fields (WH51 omits EC)        -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittWH52">
+        <Name>Ecowitt WH52 Soil Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="sensorNumber">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Sensor Number</TriggerLabel>
+                <ControlPageLabel>Sensor</ControlPageLabel>
+            </State>
+            <State id="moisture">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Soil Moisture %</TriggerLabel>
+                <ControlPageLabel>Moisture</ControlPageLabel>
+            </State>
+            <State id="moistureUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Moisture Unit</TriggerLabel>
+                <ControlPageLabel>Unit</ControlPageLabel>
+            </State>
+            <State id="temperature">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Soil Temperature</TriggerLabel>
+                <ControlPageLabel>Soil Temp</ControlPageLabel>
+            </State>
+            <State id="temperatureUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Temperature Unit</TriggerLabel>
+                <ControlPageLabel>Temp Unit</ControlPageLabel>
+            </State>
+            <State id="ec">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Electrical Conductivity (uS/cm)</TriggerLabel>
+                <ControlPageLabel>EC uS/cm</ControlPageLabel>
+            </State>
+            <State id="ecUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>EC Unit</TriggerLabel>
+                <ControlPageLabel>EC Unit</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>moisture</UiDisplayStateId>
+    </Device>
+
+    <!-- ============================================================== -->
+    <!-- WN38 Black Globe Thermometer / WBGT Heat Stress Sensor (2025)  -->
+    <!-- Note: field names are provisional — enable Debug Logging if    -->
+    <!-- your WN38 is connected and no device is being created.         -->
+    <!-- ============================================================== -->
+    <Device type="custom" id="ecowittWN38">
+        <Name>Ecowitt WN38 WBGT Sensor</Name>
+        <ConfigUI>
+            <Field id="deviceNote" type="label">
+                <Label>This device receives data automatically from the Ecowitt gateway. No per-device configuration is required — all settings are in Plugin Preferences.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="blackGlobeTemp">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Black Globe Temperature</TriggerLabel>
+                <ControlPageLabel>Globe Temp</ControlPageLabel>
+            </State>
+            <State id="blackGlobeTempUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Globe Temperature Unit</TriggerLabel>
+                <ControlPageLabel>Temp Unit</ControlPageLabel>
+            </State>
+            <State id="wbgt">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>WBGT Heat Stress Index</TriggerLabel>
+                <ControlPageLabel>WBGT</ControlPageLabel>
+            </State>
+            <State id="wbgtUnit">
+                <ValueType>String</ValueType>
+                <TriggerLabel>WBGT Unit</TriggerLabel>
+                <ControlPageLabel>WBGT Unit</ControlPageLabel>
+            </State>
+            <State id="lastUpdate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Update</TriggerLabel>
+                <ControlPageLabel>Last Update</ControlPageLabel>
+            </State>
+            <State id="deviceOnline">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Device Online</TriggerLabel>
+                <ControlPageLabel>Online</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>wbgt</UiDisplayStateId>
+    </Device>
+
+</Devices>

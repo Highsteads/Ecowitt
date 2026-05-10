@@ -1,0 +1,64 @@
+# Ecowitt Weather Station
+
+**Indigo home automation plugin.**
+
+Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors, multi-channel temperature/humidity, wind, rain and solar/UV sensors automatically and exposes live data as native Indigo devices
+
+**Author:** CliveS & Claude Sonnet 4.6
+**Platform:** Indigo 2025.2 or later, macOS, Python 3.13
+**Bundle ID:** `com.clives.indigoplugin.ecowitt`
+**Version:** 2.0.0
+
+---
+
+## Installation
+
+1. Go to the [Releases page](https://github.com/Highsteads/Ecowitt/releases) and download `Ecowitt.indigoPlugin.zip`
+2. Unzip the downloaded file — you will get `Ecowitt.indigoPlugin`
+3. Double-click `Ecowitt.indigoPlugin` — Indigo will install it automatically
+4. In Indigo: **Plugins → Manage Plugins → Enable** Ecowitt Weather Station
+5. Open **Plugins → Ecowitt Weather Station → Configure** and fill in any required fields
+
+---
+
+## Credentials — `IndigoSecrets.py` vs `IndigoSecrets_example.py`
+
+This plugin (along with all CliveS Indigo plugins) reads sensitive values from
+a shared master credentials file at:
+
+`/Library/Application Support/Perceptive Automation/IndigoSecrets.py`
+
+| File | Purpose | Real data? | Committed to GitHub? |
+|------|---------|------------|----------------------|
+| `IndigoSecrets.py` | Working file the plugin reads at runtime. Keep a backup in a password manager. | YES | **NO** — listed in `.gitignore` |
+| `IndigoSecrets_example.py` | Template only — empty placeholders. Shipped in the plugin bundle. | NO | YES |
+
+If you do not have `IndigoSecrets.py`, copy `IndigoSecrets_example.py` from
+the plugin bundle to that location and fill in your values. Or skip
+`IndigoSecrets.py` entirely and enter values via the plugin's configuration
+dialog — `IndigoSecrets.py` wins over the dialog when both are set.
+
+If a required value is set in NEITHER source the plugin logs an ERROR
+pointing the user to either fill in the matching field or add the key to
+`IndigoSecrets.py`.
+
+---
+
+## Repository structure
+
+```
+README.md                        ← this file (GitHub displays this)
+Ecowitt.indigoPlugin/
+├── Contents/
+│   ├── Info.plist
+│   └── Server Plugin/
+│       ├── plugin.py
+│       └── ...
+└── Contents/Server Plugin/IndigoSecrets_example.py   ← credential template
+```
+
+---
+
+## License
+
+GPL-3.0 — see plugin source files for details.

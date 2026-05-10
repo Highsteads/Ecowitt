@@ -1,0 +1,243 @@
+<?xml version="1.0"?>
+<PluginConfig>
+
+    <!-- ============================================================== -->
+    <!-- HTTP SERVER CONFIGURATION                                       -->
+    <!-- ============================================================== -->
+    <Field id="serverHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>HTTP Server Configuration</Label>
+    </Field>
+
+    <Field id="indigoServerIP" type="textfield" defaultValue="">
+        <Label>Indigo Server IP Address:</Label>
+        <Description>Your Indigo server IP (e.g. 192.168.100.160). Leave blank for auto-detect. Enter this IP in your Ecowitt gateway settings.</Description>
+    </Field>
+
+    <Field id="httpPort" type="textfield" defaultValue="8088">
+        <Label>HTTP Server Port:</Label>
+        <Description>Port the plugin listens on (1024-65535). Configure your gateway to POST to this port. Default: 8088.</Description>
+    </Field>
+
+    <Field id="listenAddress" type="menu" defaultValue="0.0.0.0">
+        <Label>Listen Address:</Label>
+        <List>
+            <Option value="0.0.0.0">All Network Interfaces (0.0.0.0)</Option>
+            <Option value="127.0.0.1">Localhost Only (127.0.0.1)</Option>
+        </List>
+        <Description>Use "All Interfaces" for normal operation.</Description>
+    </Field>
+
+    <Field id="serverSep" type="separator"/>
+
+    <!-- ============================================================== -->
+    <!-- UNIT PREFERENCES                                               -->
+    <!-- ============================================================== -->
+    <Field id="unitsHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>Unit Preferences</Label>
+    </Field>
+
+    <Field id="temperatureUnit" type="menu" defaultValue="C">
+        <Label>Temperature Units:</Label>
+        <List>
+            <Option value="C">Celsius (degC)</Option>
+            <Option value="F">Fahrenheit (degF)</Option>
+        </List>
+    </Field>
+
+    <Field id="windSpeedUnit" type="menu" defaultValue="kmh">
+        <Label>Wind Speed Units:</Label>
+        <List>
+            <Option value="mph">Miles per Hour (mph)</Option>
+            <Option value="kmh">Kilometres per Hour (km/h)</Option>
+            <Option value="ms">Metres per Second (m/s)</Option>
+            <Option value="kts">Knots (kts)</Option>
+        </List>
+    </Field>
+
+    <Field id="pressureUnit" type="menu" defaultValue="hPa">
+        <Label>Pressure Units:</Label>
+        <List>
+            <Option value="inHg">Inches of Mercury (inHg)</Option>
+            <Option value="hPa">Hectopascals (hPa)</Option>
+            <Option value="mb">Millibars (mb)</Option>
+            <Option value="mmHg">Millimetres of Mercury (mmHg)</Option>
+        </List>
+    </Field>
+
+    <Field id="rainUnit" type="menu" defaultValue="mm">
+        <Label>Rain Units:</Label>
+        <List>
+            <Option value="in">Inches (in)</Option>
+            <Option value="mm">Millimetres (mm)</Option>
+        </List>
+    </Field>
+
+    <Field id="distanceUnit" type="menu" defaultValue="km">
+        <Label>Distance Units:</Label>
+        <List>
+            <Option value="km">Kilometres (km)</Option>
+            <Option value="mi">Miles (mi)</Option>
+        </List>
+        <Description>Used for lightning strike distance.</Description>
+    </Field>
+
+    <Field id="decimalPlaces" type="menu" defaultValue="1">
+        <Label>Decimal Places:</Label>
+        <List>
+            <Option value="0">0 (whole numbers)</Option>
+            <Option value="1">1 (e.g. 18.5)</Option>
+            <Option value="2">2 (e.g. 18.52)</Option>
+        </List>
+        <Description>Decimal precision for temperature, wind, pressure, rain values.</Description>
+    </Field>
+
+    <Field id="unitsSep" type="separator"/>
+
+    <!-- ============================================================== -->
+    <!-- DEVICE SETTINGS                                                 -->
+    <!-- ============================================================== -->
+    <Field id="deviceHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>Device Settings</Label>
+    </Field>
+
+    <Field id="autoCreateDevices" type="checkbox" defaultValue="true">
+        <Label>Auto-Create Devices:</Label>
+        <Description>Automatically create Indigo devices when new sensors are first detected.</Description>
+    </Field>
+
+    <Field id="deviceFolder" type="menu" defaultValue="0">
+        <Label>Device Folder:</Label>
+        <List class="self" filter="" method="getFolderList"/>
+        <Description>Folder where new devices will be created. Select Root for no folder.</Description>
+    </Field>
+
+    <Field id="devicePrefix" type="textfield" defaultValue="Ecowitt">
+        <Label>Device Name Prefix:</Label>
+        <Description>Prefix for auto-created device names (e.g. "Ecowitt Outdoor Sensor").</Description>
+    </Field>
+
+    <Field id="includeStationInName" type="checkbox" defaultValue="false">
+        <Label>Include Station ID in Name:</Label>
+        <Description>Append last 6 chars of PASSKEY to device names — useful if running multiple gateways.</Description>
+    </Field>
+
+    <Field id="deviceSep" type="separator"/>
+
+    <!-- ============================================================== -->
+    <!-- DATA PROCESSING                                                 -->
+    <!-- ============================================================== -->
+    <Field id="dataHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>Data Processing</Label>
+    </Field>
+
+    <Field id="dataStaleTimeout" type="textfield" defaultValue="300">
+        <Label>Stale Data Timeout (seconds):</Label>
+        <Description>Mark device offline if no data received for this many seconds. Minimum 60. Default: 300 (5 minutes).</Description>
+    </Field>
+
+    <Field id="batteryLowThreshold" type="textfield" defaultValue="1">
+        <Label>Battery Low Threshold:</Label>
+        <Description>Battery value at or below this triggers low battery status. Most Ecowitt sensors use 0=OK / 1=Low. Default: 1.</Description>
+    </Field>
+
+    <Field id="updateInterval" type="textfield" defaultValue="30">
+        <Label>Expected Update Interval (seconds):</Label>
+        <Description>Match your gateway upload interval. Used for documentation only — does not affect processing.</Description>
+    </Field>
+
+    <Field id="dataSep" type="separator"/>
+
+    <!-- ============================================================== -->
+    <!-- PUSHOVER BATTERY ALERTS                                        -->
+    <!-- ============================================================== -->
+    <Field id="pushoverHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>Pushover Battery Alerts</Label>
+    </Field>
+
+    <Field id="enablePushover" type="checkbox" defaultValue="false">
+        <Label>Enable Pushover Alerts:</Label>
+        <Description>Send a Pushover notification when any sensor battery goes low. Requires the Pushover plugin to be installed and enabled. Can also be toggled from the Plugin menu.</Description>
+    </Field>
+
+    <Field id="pushoverDevice" type="textfield" defaultValue="">
+        <Label>Pushover Device Name:</Label>
+        <Description>Optional: name of a specific Pushover device to receive alerts. Leave blank to send to all your devices.</Description>
+    </Field>
+
+    <Field id="pushoverSep" type="separator"/>
+
+    <!-- ============================================================== -->
+    <!-- LDS01 WATER LEVEL SENSOR                                       -->
+    <!-- ============================================================== -->
+    <Field id="ldsHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>LDS01 / LDS04 Water Level Sensor</Label>
+    </Field>
+
+    <Field id="enableLDS" type="checkbox" defaultValue="false">
+        <Label>Enable LDS Water Level:</Label>
+        <Description>Enable support for the LDS01/LDS04 laser distance sensor used to measure water tank levels. Can also be toggled from the Plugin menu.</Description>
+    </Field>
+
+    <Field id="ldsTankHeight" type="textfield" defaultValue="1000">
+        <Label>Tank Height (mm):</Label>
+        <Description>Total internal height of your water tank in millimetres. The sensor measures distance from the sensor down to the water surface; this value converts it to a water level percentage. Default: 1000mm (1m).</Description>
+    </Field>
+
+    <Field id="ldsSep" type="separator"/>
+
+    <!-- ============================================================== -->
+    <!-- LOGGING AND DEBUG                                               -->
+    <!-- ============================================================== -->
+    <Field id="loggingHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>Logging and Debug</Label>
+    </Field>
+
+    <Field id="enableTimestampLogging" type="checkbox" defaultValue="true">
+        <Label>Enable Timestamp in Logs:</Label>
+        <Description>Prefix all log messages with [HH:MM:SS]. Disable if you prefer Indigo's own column timestamps only. Also toggleable from the Plugin menu.</Description>
+    </Field>
+
+    <Field id="showDebugInfo" type="checkbox" defaultValue="false">
+        <Label>Enable Debug Logging:</Label>
+        <Description>Log detailed HTTP request and data processing information. Useful for troubleshooting new sensors.</Description>
+    </Field>
+
+    <Field id="logRawData" type="checkbox" defaultValue="false">
+        <Label>Log Raw POST Data:</Label>
+        <Description>Log the complete raw POST payload from the gateway. Use when diagnosing new or unknown fields.</Description>
+    </Field>
+
+    <Field id="logDeviceUpdates" type="checkbox" defaultValue="false">
+        <Label>Log Device State Updates:</Label>
+        <Description>Log every device state update. Can be verbose at short update intervals.</Description>
+    </Field>
+
+    <Field id="loggingSep" type="separator"/>
+
+    <!-- ============================================================== -->
+    <!-- GATEWAY SETUP INSTRUCTIONS                                     -->
+    <!-- ============================================================== -->
+    <Field id="setupHeader" type="label" fontSize="regular" fontColor="darkgray">
+        <Label>Gateway Setup (WS View Plus app)</Label>
+    </Field>
+
+    <Field id="step1" type="label" fontSize="small" alignText="left">
+        <Label>1. Open WS View Plus app on your phone</Label>
+    </Field>
+    <Field id="step2" type="label" fontSize="small" alignText="left">
+        <Label>2. Menu - Device List - [Your Gateway] - More - Weather Services - Customized</Label>
+    </Field>
+    <Field id="step3" type="label" fontSize="small" alignText="left">
+        <Label>3. Set: Server IP = [Indigo server IP above]</Label>
+    </Field>
+    <Field id="step4" type="label" fontSize="small" alignText="left">
+        <Label>4. Set: Port = [HTTP Server Port above]  Path = /data/report/  Protocol = Ecowitt</Label>
+    </Field>
+    <Field id="step5" type="label" fontSize="small" alignText="left">
+        <Label>5. Set Upload Interval to your preferred value (30-60 seconds recommended)</Label>
+    </Field>
+    <Field id="step6" type="label" fontSize="small" alignText="left">
+        <Label>6. Save and wait - Indigo devices are created automatically on first data receipt</Label>
+    </Field>
+
+</PluginConfig>
