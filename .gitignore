@@ -27,4 +27,5 @@ secrets.py
 
 # Indigo runtime
 Contents/Packages/
+**/Contents/Packages/
 *.zip

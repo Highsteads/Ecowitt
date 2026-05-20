@@ -7,8 +7,18 @@
 #              Aercus Instruments, Bresser and other brands using the same protocol.
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Sonnet 4.6
-# Date:        10-05-2026
-# Version:     2.1.0
+# Date:        13-05-2026
+# Version:     2.1.1
+#
+# v2.1.1 (13-05-2026):
+# - Bundle plugin_utils.py inside the plugin (was missing — banner was falling
+#   back to a one-liner because the import was looking in the wrong directory).
+# - Fix sys.path.insert: use os.getcwd() (the plugin's own Server Plugin/ folder)
+#   instead of the shared IndigoSecrets directory. This plugin uses no secrets
+#   so only the bundle-local path is needed.
+# - Add showPluginInfo menu item + callback that re-runs the startup banner
+#   (per global CLAUDE.md standard pattern).
+# - showPluginStatus: drop hardcoded "2.0.0" string, use self.pluginVersion.
 #
 # v2.1.0 (10-05-2026):
 # - CRITICAL fix: rename custom state `batteryLevel` -> `battery` (Integer).
@@ -33,13 +43,14 @@
 
 import indigo
 import math
+import os as _os
 import sys as _sys
 import threading
 import socket
 from datetime import datetime
 from urllib.parse import unquote
 
-_sys.path.insert(0, "/Library/Application Support/Perceptive Automation")
+_sys.path.insert(0, _os.getcwd())
 try:
     from plugin_utils import log_startup_banner
 except ImportError:
@@ -1632,10 +1643,18 @@ class Plugin(indigo.PluginBase):
             log("[!] Pushover device name not set — alerts will use default device. Set in Plugin Preferences.", "WARNING")
 
 
+    def showPluginInfo(self, valuesDict=None, typeId=None):
+        """Menu: Re-run the startup banner on demand."""
+        if log_startup_banner:
+            log_startup_banner(self.pluginId, self.pluginDisplayName, self.pluginVersion)
+        else:
+            indigo.server.log(f"{self.pluginDisplayName} v{self.pluginVersion}")
+
+
     def showPluginStatus(self):
         """Menu: Display current plugin status and configuration to the Indigo log."""
         log("=== Ecowitt Plugin Status ===")
-        log(f"  Version:       2.0.0")
+        log(f"  Version:       {self.pluginVersion}")
         log(f"  HTTP server:   {self.listen_address}:{self.http_port}  ({'running' if self.server_running else 'STOPPED'})")
         log(f"  Indigo IP:     {self.indigo_server_ip or 'Auto-detect'}")
         log(f"  Units:         temp={self.temperature_unit}  wind={self.wind_speed_unit}  pressure={self.pressure_unit}  rain={self.rain_unit}")

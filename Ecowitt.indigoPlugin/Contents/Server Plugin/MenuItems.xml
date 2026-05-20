@@ -33,4 +33,11 @@
         <CallbackMethod>refreshAllDevices</CallbackMethod>
     </MenuItem>
 
+    <MenuItem id="sep2" isSeparator="true"/>
+
+    <MenuItem id="showPluginInfo">
+        <Name>Show Plugin Info</Name>
+        <CallbackMethod>showPluginInfo</CallbackMethod>
+    </MenuItem>
+
 </MenuItems>
