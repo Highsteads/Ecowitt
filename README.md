@@ -9,7 +9,7 @@ Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors,
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.0.0
+**Version:** 2.2.2
 
 ---
 
@@ -43,6 +43,21 @@ dialog — `IndigoSecrets.py` wins over the dialog when both are set.
 If a required value is set in NEITHER source the plugin logs an ERROR
 pointing the user to either fill in the matching field or add the key to
 `IndigoSecrets.py`.
+
+---
+
+## Logging
+
+Every log line is prefixed with a millisecond timestamp `[HH:MM:SS.mmm]` so
+events can be correlated tightly with other CliveS plugins (Device Activity
+Monitor uses the same convention).
+
+To turn the prefix off (or back on) at any time:
+
+**Plugins → Ecowitt Weather Station → Toggle Timestamps in Log (on/off)**
+
+The setting is stored in `pluginPrefs` (`enableTimestampLogging`) and persists
+across restarts. Defaults to ON.
 
 ---
 
