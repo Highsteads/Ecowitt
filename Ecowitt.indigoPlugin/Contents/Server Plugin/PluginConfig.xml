@@ -145,6 +145,11 @@
         <Description>Match your gateway upload interval. Used for documentation only — does not affect processing.</Description>
     </Field>
 
+    <Field id="expectedPasskey" type="textfield" defaultValue="">
+        <Label>Expected PASSKEY (optional):</Label>
+        <Description>If set, only pushes containing this exact PASSKEY are accepted. Loaded from IndigoSecrets.ECOWITT_PASSKEY first; this field is the fallback if that file is absent. Use the value shown on the Main Gateway device's `passkey` state. Leave blank to accept any.</Description>
+    </Field>
+
     <Field id="dataSep" type="separator"/>
 
     <!-- ============================================================== -->

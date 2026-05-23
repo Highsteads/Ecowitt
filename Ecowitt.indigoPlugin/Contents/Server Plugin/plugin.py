@@ -6,9 +6,34 @@
 #              Compatible with Ecowitt, Fine Offset, Ambient Weather, Froggit,
 #              Aercus Instruments, Bresser and other brands using the same protocol.
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
-# Author:      CliveS & Claude Sonnet 4.6
-# Date:        13-05-2026
-# Version:     2.1.1
+# Author:      CliveS & Claude Opus 4.7
+# Date:        23-05-2026
+# Version:     2.2.2
+#
+# v2.2.2 (23-05-2026): Added plugin_utils.install_timestamp_filter() wiring so
+# self.logger.* calls also get the [HH:MM:SS.mmm] prefix (previously only the
+# module-level log() helper honoured the toggle). The existing
+# "Toggle Timestamp Logging" menu now flips BOTH the global flag and the new
+# filter in sync. Matches Device Activity Monitor convention.
+#
+# v2.2.1 (22-05-2026):
+# - PASSKEY now loads from IndigoSecrets.ECOWITT_PASSKEY first, with the
+#   PluginConfig `expectedPasskey` field as fallback.  Keeps the gateway
+#   identifier out of the plugin database (one master file, shared across
+#   plugins) per the standard secrets policy.
+#
+# v2.2.0 (22-05-2026):
+# - New Main Gateway states `connectionStatus` (Live / Stale / Offline) and
+#   `lastUpdateAgeSec` — give a queryable, trigger-friendly view of gateway
+#   health rather than relying on the boolean deviceOnline alone.  The Main
+#   device's UiDisplayStateId now shows connectionStatus.
+# - Optional PASSKEY routing: set `expectedPasskey` in Plugin Preferences to
+#   accept pushes from only that gateway.  Useful if another Ecowitt device on
+#   the LAN starts uploading to this server unexpectedly.  Blank = accept any.
+# - Stale-check (still runs every 60 s) now also writes connectionStatus =
+#   "Stale" / "Live" on every tick, so the Main device always reflects the
+#   current freshness of the feed.
+# - Info.plist ServerApiVersion bumped 3.0 -> 3.4 to align with Indigo 2025.2.
 #
 # v2.1.1 (13-05-2026):
 # - Bundle plugin_utils.py inside the plugin (was missing — banner was falling
@@ -55,6 +80,18 @@ try:
     from plugin_utils import log_startup_banner
 except ImportError:
     log_startup_banner = None
+try:
+    from plugin_utils import install_timestamp_filter
+except ImportError:
+    install_timestamp_filter = None
+
+# Master secrets file — shared across all CliveS plugins. Optional: if absent
+# or the key is missing, the plugin falls back to PluginConfig (expectedPasskey).
+_sys.path.insert(0, "/Library/Application Support/Perceptive Automation")
+try:
+    from IndigoSecrets import ECOWITT_PASSKEY as _SECRETS_ECOWITT_PASSKEY
+except ImportError:
+    _SECRETS_ECOWITT_PASSKEY = ""
 
 # ==============================================================================
 # CONSTANTS
@@ -97,7 +134,7 @@ _TIMESTAMP_LOGGING = True
 def log(message, level="INFO"):
     """Custom log with optional [HH:MM:SS] timestamp prefix."""
     if _TIMESTAMP_LOGGING:
-        indigo.server.log(f"[{datetime.now().strftime('%H:%M:%S')}] {message}", level=level)
+        indigo.server.log(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] {message}", level=level)
     else:
         indigo.server.log(message, level=level)
 
@@ -272,6 +309,14 @@ class Plugin(indigo.PluginBase):
         self.pushover_enabled   = pluginPrefs.get("enablePushover", False)
         self.pushover_device    = pluginPrefs.get("pushoverDevice", "")
 
+        # -- PASSKEY routing (optional). Blank = accept pushes from any gateway.
+        # Resolution: IndigoSecrets.ECOWITT_PASSKEY -> PluginConfig field -> blank.
+        # Set to a specific PASSKEY value to drop pushes from any other gateway
+        # that happens to be uploading to this server. Comparison is exact and
+        # case-sensitive (Ecowitt PASSKEYs are uppercase MAC-derived hex).
+        self.expected_passkey   = ((_SECRETS_ECOWITT_PASSKEY or "").strip()
+                                   or (pluginPrefs.get("expectedPasskey", "") or "").strip())
+
         # -- LDS01 water level sensor
         self.lds_enabled        = pluginPrefs.get("enableLDS", False)
         self.lds_tank_height    = int(pluginPrefs.get("ldsTankHeight", 1000))
@@ -281,6 +326,15 @@ class Plugin(indigo.PluginBase):
         self.log_raw_data       = pluginPrefs.get("logRawData", False)
         self.log_device_updates = pluginPrefs.get("logDeviceUpdates", False)
         _TIMESTAMP_LOGGING      = pluginPrefs.get("enableTimestampLogging", True)
+        self.timestamp_enabled  = _TIMESTAMP_LOGGING
+
+        # Install logging filter so self.logger.* calls also get the prefix.
+        # The module-level log() helper continues to honour _TIMESTAMP_LOGGING
+        # directly; toggleTimestampLogging() keeps both in sync.
+        if install_timestamp_filter:
+            self._ts_filter = install_timestamp_filter(self, enabled=self.timestamp_enabled)
+        else:
+            self._ts_filter = None
 
         # -- Runtime state
         self.server_thread      = None
@@ -320,6 +374,11 @@ class Plugin(indigo.PluginBase):
             log(f"  Decimals:     {self.decimal_places}")
             log(f"  Stale limit:  {self.stale_timeout}s")
             log(f"  Pushover:     {'Enabled' if self.pushover_enabled else 'Disabled'}")
+            if self.expected_passkey:
+                src = "IndigoSecrets" if (_SECRETS_ECOWITT_PASSKEY or "").strip() else "PluginConfig"
+                log(f"  PASSKEY:      {self.expected_passkey} (from {src})")
+            else:
+                log(f"  PASSKEY:      Any (no filter)")
             log(f"  LDS01:        {'Enabled' if self.lds_enabled else 'Disabled'}" +
                 (f" (tank: {self.lds_tank_height}mm)" if self.lds_enabled else ""))
             log(f"  Timestamps:   {'Enabled' if _TIMESTAMP_LOGGING else 'Disabled'}")
@@ -496,6 +555,15 @@ class Plugin(indigo.PluginBase):
     # --------------------------------------------------------------------------
     def process_weather_data(self, data):
         try:
+            # PASSKEY routing: drop pushes from gateways other than the configured one
+            if self.expected_passkey:
+                incoming = str(data.get("PASSKEY", "")).strip()
+                if incoming != self.expected_passkey:
+                    if self.debug:
+                        log(f"Rejected push from PASSKEY={incoming or '(missing)'} "
+                            f"(expected {self.expected_passkey})", "WARNING")
+                    return
+
             self.last_data = data
 
             if self.debug:
@@ -552,14 +620,16 @@ class Plugin(indigo.PluginBase):
 
             now    = datetime.now()
             states = [
-                {'key': 'stationType',  'value': str(data.get('stationtype', 'Unknown'))},
-                {'key': 'model',        'value': str(data.get('model', 'Unknown'))},
-                {'key': 'frequency',    'value': str(data.get('freq', 'Unknown'))},
-                {'key': 'passkey',      'value': str(data.get('PASSKEY', 'Unknown'))},
-                {'key': 'lastUpdate',   'value': str(data.get('dateutc', now.strftime('%Y-%m-%d %H:%M:%S')))},
-                {'key': 'runtime',      'value': str(data.get('runtime', '0'))},
-                {'key': 'interval',     'value': str(data.get('interval', 'Unknown'))},
-                {'key': 'deviceOnline', 'value': True}
+                {'key': 'stationType',      'value': str(data.get('stationtype', 'Unknown'))},
+                {'key': 'model',            'value': str(data.get('model', 'Unknown'))},
+                {'key': 'frequency',        'value': str(data.get('freq', 'Unknown'))},
+                {'key': 'passkey',          'value': str(data.get('PASSKEY', 'Unknown'))},
+                {'key': 'lastUpdate',       'value': str(data.get('dateutc', now.strftime('%Y-%m-%d %H:%M:%S')))},
+                {'key': 'runtime',          'value': str(data.get('runtime', '0'))},
+                {'key': 'interval',         'value': str(data.get('interval', 'Unknown'))},
+                {'key': 'deviceOnline',     'value': True},
+                {'key': 'connectionStatus', 'value': "Live"},
+                {'key': 'lastUpdateAgeSec', 'value': 0}
             ]
             dev.updateStatesOnServer(states)
             self.last_update_time[dev.id] = now
@@ -1356,6 +1426,10 @@ class Plugin(indigo.PluginBase):
         Called every 60 seconds from runConcurrentThread.
         Marks any device offline if no data received within stale_timeout seconds.
         Issues a one-shot warning per device to avoid log spam.
+
+        For the Main Gateway device, also refreshes connectionStatus
+        (Live / Stale) and lastUpdateAgeSec on every tick — gives a constantly-
+        current view of feed freshness without waiting for the stale threshold.
         """
         try:
             now = datetime.now()
@@ -1367,14 +1441,26 @@ class Plugin(indigo.PluginBase):
                 if last_seen is None:
                     continue
 
-                age_s = (now - last_seen).total_seconds()
-                if age_s > self.stale_timeout:
-                    dev = indigo.devices[dev_id]
+                dev   = indigo.devices[dev_id]
+                age_s = int((now - last_seen).total_seconds())
+                stale = age_s > self.stale_timeout
+
+                if stale:
                     if not self.stale_warned.get(dev_id, False):
-                        log(f"[!] No data from {dev.name} for {int(age_s / 60)} min — marking offline", "WARNING")
+                        log(f"[!] No data from {dev.name} for {age_s // 60} min — marking offline", "WARNING")
                         self.stale_warned[dev_id] = True
                     try:
                         dev.updateStateOnServer("deviceOnline", False)
+                    except Exception:
+                        pass
+
+                # Main Gateway: keep connectionStatus and age fresh every tick
+                if dev.deviceTypeId == DEVICE_TYPE_MAIN:
+                    try:
+                        dev.updateStatesOnServer([
+                            {'key': 'connectionStatus', 'value': "Stale" if stale else "Live"},
+                            {'key': 'lastUpdateAgeSec', 'value': age_s}
+                        ])
                     except Exception:
                         pass
 
@@ -1588,6 +1674,9 @@ class Plugin(indigo.PluginBase):
         self.pushover_enabled   = valuesDict.get("enablePushover", False)
         self.pushover_device    = valuesDict.get("pushoverDevice", "")
 
+        self.expected_passkey   = ((_SECRETS_ECOWITT_PASSKEY or "").strip()
+                                   or (valuesDict.get("expectedPasskey", "") or "").strip())
+
         self.lds_enabled        = valuesDict.get("enableLDS", False)
         self.lds_tank_height    = int(valuesDict.get("ldsTankHeight", 1000))
 
@@ -1612,13 +1701,21 @@ class Plugin(indigo.PluginBase):
     # MENU ITEM HANDLERS
     # --------------------------------------------------------------------------
     def toggleTimestampLogging(self):
-        """Menu: Toggle [HH:MM:SS] timestamp prefix on all log output."""
+        """Menu: Toggle [HH:MM:SS.mmm] timestamp prefix on all log output.
+
+        Flips both the module-level _TIMESTAMP_LOGGING flag (used by the log()
+        helper) and the self.logger filter installed in __init__ so every log
+        line gains/loses the prefix together.
+        """
         global _TIMESTAMP_LOGGING
         _TIMESTAMP_LOGGING = not _TIMESTAMP_LOGGING
+        self.timestamp_enabled = _TIMESTAMP_LOGGING
+        if self._ts_filter:
+            self._ts_filter.enabled = _TIMESTAMP_LOGGING
         self.pluginPrefs["enableTimestampLogging"] = _TIMESTAMP_LOGGING
         indigo.server.savePluginPrefs()
-        state_str = "enabled" if _TIMESTAMP_LOGGING else "disabled"
-        indigo.server.log(f"Ecowitt: Timestamp logging {state_str}")
+        state_str = "ON" if _TIMESTAMP_LOGGING else "OFF"
+        indigo.server.log(f"[{self.pluginDisplayName}] Timestamps in Log -> {state_str}")
 
 
     def toggleLDSSensor(self):
@@ -1645,10 +1742,16 @@ class Plugin(indigo.PluginBase):
 
     def showPluginInfo(self, valuesDict=None, typeId=None):
         """Menu: Re-run the startup banner on demand."""
+        extras = [
+            ("Compatible Hardware:", "Ecowitt / Fine Offset / Ambient / Froggit / Aercus / Bresser"),
+            ("Timestamps in Log:",   "ON" if self.timestamp_enabled else "OFF"),
+        ]
         if log_startup_banner:
-            log_startup_banner(self.pluginId, self.pluginDisplayName, self.pluginVersion)
+            log_startup_banner(self.pluginId, self.pluginDisplayName, self.pluginVersion, extras=extras)
         else:
             indigo.server.log(f"{self.pluginDisplayName} v{self.pluginVersion}")
+            for label, value in extras:
+                indigo.server.log(f"  {label} {value}")
 
 
     def showPluginStatus(self):

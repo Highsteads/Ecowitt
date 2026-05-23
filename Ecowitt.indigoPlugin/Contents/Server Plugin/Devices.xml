@@ -52,8 +52,18 @@
                 <TriggerLabel>Device Online</TriggerLabel>
                 <ControlPageLabel>Online</ControlPageLabel>
             </State>
+            <State id="connectionStatus">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Connection Status</TriggerLabel>
+                <ControlPageLabel>Status</ControlPageLabel>
+            </State>
+            <State id="lastUpdateAgeSec">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Seconds Since Last Update</TriggerLabel>
+                <ControlPageLabel>Age (s)</ControlPageLabel>
+            </State>
         </States>
-        <UiDisplayStateId>lastUpdate</UiDisplayStateId>
+        <UiDisplayStateId>connectionStatus</UiDisplayStateId>
     </Device>
 
     <!-- ============================================================== -->

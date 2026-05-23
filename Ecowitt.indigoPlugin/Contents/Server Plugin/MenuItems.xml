@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <MenuItems>
 
-    <!-- Toggle [HH:MM:SS] timestamp prefix on all log output -->
-    <MenuItem id="toggleTimestampLogging">
-        <Name>Toggle Timestamp Logging</Name>
+    <!-- Toggle [HH:MM:SS.mmm] timestamp prefix on all log output -->
+    <MenuItem id="toggleTimestamps">
+        <Name>Toggle Timestamps in Log (on/off)</Name>
         <CallbackMethod>toggleTimestampLogging</CallbackMethod>
     </MenuItem>
 
