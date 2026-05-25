@@ -2,18 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>PluginVersion</key>
-	<string>2.2.3</string>
-	<key>ServerApiVersion</key>
-	<string>3.4</string>
-	<key>IwsApiVersion</key>
-	<string>1.0.0</string>
 	<key>CFBundleDisplayName</key>
 	<string>Ecowitt Weather Station</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.clives.indigoplugin.ecowitt</string>
-	<key>CFBundleVersion</key>
-	<string>2.2.3</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -21,6 +13,8 @@
 			<string>https://github.com/Highsteads/EcowittWeather</string>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>1.0.0</string>
 	<key>GithubInfo</key>
 	<dict>
 		<key>Owner</key>
@@ -28,5 +22,11 @@
 		<key>Repo</key>
 		<string>EcowittWeather</string>
 	</dict>
+	<key>IwsApiVersion</key>
+	<string>1.0.0</string>
+	<key>PluginVersion</key>
+	<string>2.2.3</string>
+	<key>ServerApiVersion</key>
+	<string>3.4</string>
 </dict>
 </plist>

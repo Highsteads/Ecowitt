@@ -347,12 +347,7 @@ class Plugin(indigo.PluginBase):
         self.battery_alerted    = {}         # device id -> bool (one-shot Pushover)
 
         # -- Startup banner
-        if log_startup_banner:
-            log_startup_banner(pluginId, pluginDisplayName, pluginVersion, extras=[
-                ("Compatible Hardware:", "Ecowitt / Fine Offset / Ambient Weather / Froggit / Aercus / Bresser")
-            ])
-        else:
-            indigo.server.log(f"Ecowitt Weather Station v{pluginVersion} starting")
+        # Startup banner moved to showPluginInfo on demand (revised 25-May-2026 per Jay).
 
 
     # --------------------------------------------------------------------------
