@@ -8,7 +8,7 @@
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Opus 4.7
 # Date:        23-05-2026
-# Version:     2.2.2
+# Version:     2.2.3
 #
 # v2.2.2 (23-05-2026): Added plugin_utils.install_timestamp_filter() wiring so
 # self.logger.* calls also get the [HH:MM:SS.mmm] prefix (previously only the
@@ -1594,6 +1594,18 @@ class Plugin(indigo.PluginBase):
             dev.updateStateOnServer("deviceOnline", False)
         except Exception:
             pass
+
+
+    @staticmethod
+    def didDeviceCommPropertyChange(oldDevice, newDevice):
+        """Suppress unnecessary deviceStopComm/deviceStartComm cycles.
+
+        Devices in this plugin are created and updated internally from the
+        gateway push feed; none of the user-editable pluginProps justify a
+        comm restart. Returning False prevents Indigo from cycling comm on
+        every internal replacePluginPropsOnServer write.
+        """
+        return False
 
 
     # --------------------------------------------------------------------------
