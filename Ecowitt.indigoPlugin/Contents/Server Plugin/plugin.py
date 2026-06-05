@@ -8,7 +8,7 @@
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Opus 4.7
 # Date:        23-05-2026
-# Version:     2.2.3
+# Version:     2.2.4
 #
 # v2.2.2 (23-05-2026): Added plugin_utils.install_timestamp_filter() wiring so
 # self.logger.* calls also get the [HH:MM:SS.mmm] prefix (previously only the
@@ -1284,8 +1284,9 @@ class Plugin(indigo.PluginBase):
             ]
 
             if 'ldsbatt' in data:
-                batt_level = int(data['ldsbatt'])
-                batt_pct   = battery_to_percent(batt_level)
+                # ldsbatt is a voltage (e.g. 1.5); battery_to_percent does its own
+                # guarded float() — int("1.5") would raise ValueError and abort the update.
+                batt_pct   = battery_to_percent(data['ldsbatt'])
                 is_low     = batt_pct <= self.battery_threshold
                 states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
@@ -1477,30 +1478,37 @@ class Plugin(indigo.PluginBase):
         if self.battery_alerted.get(dev.id, False):
             return  # Already alerted for this device this session
 
-        self.battery_alerted[dev.id] = True
-        self.send_pushover_alert(
+        sent = self.send_pushover_alert(
             title   = "Ecowitt Low Battery",
             message = f"Low battery on {dev.name} ({sensor_label})"
         )
-        log(f"[!] Low battery Pushover alert sent for {dev.name}", "WARNING")
+        if sent:
+            # Only latch the one-shot once the send actually succeeded, so a failed
+            # send is retried next cycle rather than silently suppressed forever.
+            self.battery_alerted[dev.id] = True
+            log(f"[!] Low battery Pushover alert sent for {dev.name}", "WARNING")
 
 
     def send_pushover_alert(self, title, message):
-        """Send a Pushover notification via the Pushover Indigo plugin."""
+        """Send a Pushover notification via the Pushover Indigo plugin. Returns True if sent."""
         try:
             plugin = indigo.server.getPlugin("io.thechad.indigoplugin.pushover")
-            if not plugin.isEnabled():
+            if not plugin or not plugin.isEnabled():
                 log("Pushover plugin is not enabled — cannot send alert", "WARNING")
-                return
+                return False
 
-            props = {"title": title, "message": message}
+            # Action id is "send" (NOT "sendPushover"), and props use the msg* keys
+            # the Pushover plugin actually reads; msgPriority must be a string.
+            props = {"msgTitle": title, "msgBody": message, "msgPriority": "0"}
             if self.pushover_device:
-                props["device"] = self.pushover_device
+                props["msgDevice"] = self.pushover_device
 
-            plugin.executeAction("sendPushover", props=props)
+            plugin.executeAction("send", props=props)
+            return True
 
         except Exception as e:
             log(f"Error sending Pushover alert: {e}", "ERROR")
+            return False
 
 
     # --------------------------------------------------------------------------
