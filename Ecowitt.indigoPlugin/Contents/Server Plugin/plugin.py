@@ -7,8 +7,8 @@
 #              Aercus Instruments, Bresser and other brands using the same protocol.
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Opus 4.7
-# Date:        23-05-2026
-# Version:     2.2.4
+# Date:        10-06-2026
+# Version:     2.2.5
 #
 # v2.2.2 (23-05-2026): Added plugin_utils.install_timestamp_filter() wiring so
 # self.logger.* calls also get the [HH:MM:SS.mmm] prefix (previously only the
@@ -373,7 +373,7 @@ class Plugin(indigo.PluginBase):
                 src = "IndigoSecrets" if (_SECRETS_ECOWITT_PASSKEY or "").strip() else "PluginConfig"
                 log(f"  PASSKEY:      {self.expected_passkey} (from {src})")
             else:
-                log(f"  PASSKEY:      Any (no filter)")
+                log("  PASSKEY:      Any (no filter)")
             log(f"  LDS01:        {'Enabled' if self.lds_enabled else 'Disabled'}" +
                 (f" (tank: {self.lds_tank_height}mm)" if self.lds_enabled else ""))
             log(f"  Timestamps:   {'Enabled' if _TIMESTAMP_LOGGING else 'Disabled'}")

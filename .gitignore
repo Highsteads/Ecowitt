@@ -29,3 +29,6 @@ secrets.py
 Contents/Packages/
 **/Contents/Packages/
 *.zip
+
+# Test runner artefacts
+.pytest_cache/
