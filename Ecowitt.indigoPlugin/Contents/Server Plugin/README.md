@@ -69,7 +69,7 @@ The plugin automatically creates devices for all detected sensors:
 6. Configure the following:
    ```
    Protocol Type:    Ecowitt
-   Server IP:        [Your Indigo Server IP, e.g., 192.168.100.160]
+   Server IP:        [Your Indigo Server IP, e.g., 192.168.1.20]
    Path:             /data/report/
    Port:             8088 (or your configured port)
    Upload Interval:  30 seconds (recommended, range: 16-60)
