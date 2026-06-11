@@ -308,7 +308,7 @@ leakbatt1-4      = Leak sensor batteries
 
 1. **Check network connectivity:**
    - Ensure Ecowitt gateway and Indigo server are on same network
-   - Ping Indigo server from another device: `ping 192.168.100.160`
+   - Ping Indigo server from another device: `ping 192.168.1.20`
 
 2. **Verify port configuration:**
    - Check plugin preferences for correct port (default: 8088)
@@ -374,7 +374,7 @@ To receive data from remote stations:
 
 1. Forward external port to Indigo server:
    ```
-   External: <your-domain>:8088 → Internal: 192.168.100.160:8088
+   External: <your-domain>:8088 → Internal: 192.168.1.20:8088
    ```
 
 2. Configure remote gateway:
@@ -466,7 +466,7 @@ For issues or questions:
 2. Verify gateway configuration in WS View app
 3. Test with curl:
    ```bash
-   curl -X POST http://192.168.100.160:8088/data/report/ \
+   curl -X POST http://192.168.1.20:8088/data/report/ \
         -d "tempf=72.5&humidity=65&baromrelin=29.92"
    ```
 4. Review this README's troubleshooting section
