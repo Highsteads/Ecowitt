@@ -104,6 +104,16 @@
                 <TriggerLabel>Vapour Pressure Deficit (kPa)</TriggerLabel>
                 <ControlPageLabel>VPD kPa</ControlPageLabel>
             </State>
+            <State id="feelsLike">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Feels Like (apparent temperature)</TriggerLabel>
+                <ControlPageLabel>Feels Like</ControlPageLabel>
+            </State>
+            <State id="heatIndex">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Heat Index</TriggerLabel>
+                <ControlPageLabel>Heat Index</ControlPageLabel>
+            </State>
             <State id="battery">
                 <ValueType>Integer</ValueType>
                 <TriggerLabel>Battery %</TriggerLabel>

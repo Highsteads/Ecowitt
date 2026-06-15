@@ -2,14 +2,14 @@
 
 **Indigo home automation plugin.**
 
-Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors, multi-channel temperature/humidity, wind, rain and solar/UV sensors automatically and exposes live data as native Indigo devices
+Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors, multi-channel temperature/humidity, wind, rain and solar/UV sensors automatically and exposes live data as native Indigo devices. Computes useful extras with no extra hardware: dew point, VPD, wind chill, feels-like (apparent temperature) and heat index.
 
 **Author:** CliveS & Claude Sonnet 4.6
 **Platform:** Indigo 2022.1 or later, macOS (Python 3.10+ bundled with Indigo)
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.2.2
+**Version:** 2.2.6
 
 ---
 

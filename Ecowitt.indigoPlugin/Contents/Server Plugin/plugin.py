@@ -6,9 +6,16 @@
 #              Compatible with Ecowitt, Fine Offset, Ambient Weather, Froggit,
 #              Aercus Instruments, Bresser and other brands using the same protocol.
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
-# Author:      CliveS & Claude Opus 4.7
-# Date:        10-06-2026
-# Version:     2.2.5
+# Author:      CliveS & Claude Opus 4.8
+# Date:        15-06-2026
+# Version:     2.2.6
+#
+# v2.2.6 (15-06-2026): Outdoor Sensor gains two computed states — `feelsLike`
+# (apparent temperature) and `heatIndex` — alongside the existing dew point /
+# VPD.  No extra hardware: derived from outdoor temp + humidity, with wind
+# speed folded in for wind chill when cold.  Uses the NWS heat-index (Rothfusz)
+# and wind-chill formulae; feels-like switches between them at 80degF / 50degF
+# and reports the plain air temperature in the comfortable band between.
 #
 # v2.2.2 (23-05-2026): Added plugin_utils.install_timestamp_filter() wiring so
 # self.logger.* calls also get the [HH:MM:SS.mmm] prefix (previously only the
@@ -246,6 +253,70 @@ def calculate_vpd(temp_c, humidity_pct):
         return str(round(max(0.0, vpd), 2))
     except Exception:
         return "0.0"
+
+
+def calculate_heat_index(temp_f, humidity_pct):
+    """Heat index ('feels like' when warm) in degF from temp (degF) and humidity (%).
+
+    NWS method: the simple Steadman formula is tried first, and only when it
+    averages >= 80 degF is the full Rothfusz regression (with the low- and
+    high-humidity corrections) applied.  Below ~80 degF the result tracks the
+    air temperature closely, which is the expected behaviour.  Returns a float
+    in degF, or None on bad input.
+    """
+    try:
+        t  = float(temp_f)
+        rh = float(humidity_pct)
+        hi = 0.5 * (t + 61.0 + ((t - 68.0) * 1.2) + (rh * 0.094))
+        if (hi + t) / 2.0 >= 80.0:
+            hi = (-42.379 + 2.04901523 * t + 10.14333127 * rh
+                  - 0.22475541 * t * rh - 0.00683783 * t * t
+                  - 0.05481717 * rh * rh + 0.00122874 * t * t * rh
+                  + 0.00085282 * t * rh * rh - 0.00000199 * t * t * rh * rh)
+            if rh < 13.0 and 80.0 <= t <= 112.0:
+                hi -= ((13.0 - rh) / 4.0) * math.sqrt((17.0 - abs(t - 95.0)) / 17.0)
+            elif rh > 85.0 and 80.0 <= t <= 87.0:
+                hi += ((rh - 85.0) / 10.0) * ((87.0 - t) / 5.0)
+        return hi
+    except Exception:
+        return None
+
+
+def calculate_wind_chill(temp_f, wind_mph):
+    """Wind chill ('feels like' when cold) in degF from temp (degF) and wind (mph).
+
+    NWS formula.  Wind chill is only defined for wind above 3 mph; at or below
+    that the air temperature is returned unchanged.  Returns a float in degF,
+    or None on bad input.
+    """
+    try:
+        t = float(temp_f)
+        v = float(wind_mph)
+        if v <= 3.0:
+            return t
+        v16 = v ** 0.16
+        return 35.74 + 0.6215 * t - 35.75 * v16 + 0.4275 * t * v16
+    except Exception:
+        return None
+
+
+def calculate_feels_like(temp_f, humidity_pct, wind_mph):
+    """Apparent ('feels like') temperature in degF.
+
+    Heat index is used at or above 80 degF, wind chill at or below 50 degF, and
+    the plain air temperature in the comfortable band between.  Mirrors the NWS
+    apparent-temperature convention.  Returns a float in degF, or None on bad
+    input.
+    """
+    try:
+        t = float(temp_f)
+    except (TypeError, ValueError):
+        return None
+    if t >= 80.0:
+        return calculate_heat_index(t, humidity_pct)
+    if t <= 50.0:
+        return calculate_wind_chill(t, wind_mph)
+    return t
 
 
 def battery_to_percent(raw_value):
@@ -837,6 +908,21 @@ class Plugin(indigo.PluginBase):
             # VPD calculated from outdoor temp + humidity (no extra hardware)
             if temp_c is not None and 'humidity' in data:
                 states.append({'key': 'vpd', 'value': calculate_vpd(temp_c, data['humidity'])})
+
+            # Feels-like (apparent temperature) + heat index — computed, no extra
+            # hardware.  Uses outdoor temp + humidity, plus wind speed when cold
+            # (wind chill).  Reported in the configured temperature unit.
+            if 'tempf' in data and 'humidity' in data:
+                try:
+                    wind_mph = float(data.get('windspeedmph', 0.0) or 0.0)
+                except (TypeError, ValueError):
+                    wind_mph = 0.0
+                feels_f = calculate_feels_like(data['tempf'], data['humidity'], wind_mph)
+                heat_f  = calculate_heat_index(data['tempf'], data['humidity'])
+                if feels_f is not None:
+                    states.append({'key': 'feelsLike', 'value': convert_temperature(feels_f, self.temperature_unit, self.decimal_places)})
+                if heat_f is not None:
+                    states.append({'key': 'heatIndex', 'value': convert_temperature(heat_f, self.temperature_unit, self.decimal_places)})
 
             # Battery — HP2561 may report wh65batt, wh25batt, or wh26batt
             for batt_key in ('wh65batt', 'wh25batt', 'wh26batt'):
