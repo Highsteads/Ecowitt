@@ -8,7 +8,22 @@
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Fable 5
 # Date:        18-07-2026
-# Version:     2.3.0
+# Version:     2.4.0
+#
+# v2.4.0 (18-07-2026): Deep-review improvements batch (tests 46 -> 65).
+# - Low-battery alert latch now RE-ARMS on battery recovery — a battery that
+#   dips, is replaced, then dips again raises a fresh alert (previously the
+#   latch only reset on a plugin restart, so a second genuine low was missed).
+# - Per-CHANNEL isolation inside the multichannel / soil / PM2.5 / leak / WH52
+#   loops — one bad channel now logs-and-continues instead of dropping every
+#   later channel in the same push.
+# - Main Gateway `connectionStatus` now reaches the documented "Offline" state
+#   (no data for 3x the stale timeout), not just Live / Stale.
+# - A bind failure (e.g. port already in use) now clears server_running, so
+#   Show Plugin Info / Show Plugin Status report the server as STOPPED rather
+#   than falsely "running".
+# - Show Plugin Info now prints the listening HTTP endpoint and the exact URL
+#   to point the gateway at — the one thing a support post needs.
 #
 # v2.3.0 (18-07-2026): Deep-review bug-fix batch (first-ever test suite, 46 tests).
 # - CRITICAL: a blank numeric config field (httpPort / dataStaleTimeout /
@@ -639,7 +654,12 @@ class Plugin(indigo.PluginBase):
                         log(f"Error accepting connection: {e}", "ERROR")
 
         except Exception as e:
-            log(f"HTTP server fatal error: {e}", "ERROR")
+            # A bind failure (e.g. the port is already in use) lands here. Clear
+            # server_running so Show Plugin Info / status report the server as
+            # STOPPED rather than falsely claiming it is running.
+            self.server_running = False
+            log(f"HTTP server fatal error: {e} — server is NOT running "
+                f"(is port {self.http_port} already in use?)", "ERROR")
         finally:
             if self.server_socket:
                 try:
@@ -1038,8 +1058,7 @@ class Plugin(indigo.PluginBase):
                     is_low     = batt_pct <= self.battery_threshold
                     states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
-                    if is_low:
-                        self.check_battery_alert(dev, "outdoor sensor")
+                    self.check_battery_alert(dev, "outdoor sensor", is_low)
                     break
 
             states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
@@ -1127,8 +1146,7 @@ class Plugin(indigo.PluginBase):
                     is_low     = batt_pct <= self.battery_threshold
                     states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
-                    if is_low:
-                        self.check_battery_alert(dev, "wind sensor")
+                    self.check_battery_alert(dev, "wind sensor", is_low)
                     break
 
             states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
@@ -1174,8 +1192,7 @@ class Plugin(indigo.PluginBase):
                 is_low     = batt_pct <= self.battery_threshold
                 states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
-                if is_low:
-                    self.check_battery_alert(dev, "rain sensor")
+                self.check_battery_alert(dev, "rain sensor", is_low)
 
             states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
             states.append({'key': 'deviceOnline', 'value': True})
@@ -1228,34 +1245,37 @@ class Plugin(indigo.PluginBase):
                 if temp_key not in data and hum_key not in data:
                     continue
 
-                dev = self.get_or_create_device(f"Multi-Channel {ch}", DEVICE_TYPE_MULTICHANNEL, f"multichannel_{ch}")
-                if not dev:
+                try:
+                    dev = self.get_or_create_device(f"Multi-Channel {ch}", DEVICE_TYPE_MULTICHANNEL, f"multichannel_{ch}")
+                    if not dev:
+                        continue
+
+                    states = [{'key': 'channel', 'value': str(ch)}]
+
+                    if temp_key in data:
+                        states.append({'key': 'temperature',     'value': convert_temperature(data[temp_key], self.temperature_unit, self.decimal_places)})
+                        states.append({'key': 'temperatureUnit', 'value': get_unit_suffix('temperature', self.temperature_unit)})
+
+                    if hum_key in data:
+                        states.append({'key': 'humidity', 'value': str(data[hum_key])})
+
+                    if batt_key in data:
+                        batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                        batt_pct   = battery_to_percent(batt_level, batt_key)
+                        is_low     = batt_pct <= self.battery_threshold
+                        states.append({'key': 'battery', 'value': batt_pct})
+                        states.append({'key': 'batteryLow',   'value': is_low})
+                        self.check_battery_alert(dev, f"multi-channel sensor {ch}", is_low)
+
+                    states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    states.append({'key': 'deviceOnline', 'value': True})
+
+                    dev.updateStatesOnServer(states)
+                    self.last_update_time[dev.id] = datetime.now()
+                    self.stale_warned[dev.id]     = False
+                except Exception as e:
+                    log(f"Error updating multi-channel {ch}: {e}", "ERROR")
                     continue
-
-                states = [{'key': 'channel', 'value': str(ch)}]
-
-                if temp_key in data:
-                    states.append({'key': 'temperature',     'value': convert_temperature(data[temp_key], self.temperature_unit, self.decimal_places)})
-                    states.append({'key': 'temperatureUnit', 'value': get_unit_suffix('temperature', self.temperature_unit)})
-
-                if hum_key in data:
-                    states.append({'key': 'humidity', 'value': str(data[hum_key])})
-
-                if batt_key in data:
-                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
-                    batt_pct   = battery_to_percent(batt_level, batt_key)
-                    is_low     = batt_pct <= self.battery_threshold
-                    states.append({'key': 'battery', 'value': batt_pct})
-                    states.append({'key': 'batteryLow',   'value': is_low})
-                    if is_low:
-                        self.check_battery_alert(dev, f"multi-channel sensor {ch}")
-
-                states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
-                states.append({'key': 'deviceOnline', 'value': True})
-
-                dev.updateStatesOnServer(states)
-                self.last_update_time[dev.id] = datetime.now()
-                self.stale_warned[dev.id]     = False
 
         except Exception as e:
             log(f"Error updating multi-channel devices: {e}", "ERROR")
@@ -1271,27 +1291,31 @@ class Plugin(indigo.PluginBase):
                 if m_key not in data:
                     continue
 
-                dev = self.get_or_create_device(f"Soil Sensor {sensor}", DEVICE_TYPE_SOIL, f"soil_{sensor}")
-                if not dev:
+                try:
+                    dev = self.get_or_create_device(f"Soil Sensor {sensor}", DEVICE_TYPE_SOIL, f"soil_{sensor}")
+                    if not dev:
+                        continue
+
+                    states = [
+                        {'key': 'sensorNumber', 'value': str(sensor)},
+                        {'key': 'moisture',     'value': str(data[m_key])},
+                        {'key': 'moistureUnit', 'value': '%'}
+                    ]
+
+                    if batt_key in data:
+                        # soilbatt* is voltage (e.g. 1.5) — keep as float, don't truncate
+                        batt_pct = battery_to_percent(data[batt_key], batt_key)
+                        states.append({'key': 'battery', 'value': batt_pct})
+
+                    states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    states.append({'key': 'deviceOnline', 'value': True})
+
+                    dev.updateStatesOnServer(states)
+                    self.last_update_time[dev.id] = datetime.now()
+                    self.stale_warned[dev.id]     = False
+                except Exception as e:
+                    log(f"Error updating soil sensor {sensor}: {e}", "ERROR")
                     continue
-
-                states = [
-                    {'key': 'sensorNumber', 'value': str(sensor)},
-                    {'key': 'moisture',     'value': str(data[m_key])},
-                    {'key': 'moistureUnit', 'value': '%'}
-                ]
-
-                if batt_key in data:
-                    # soilbatt* is voltage (e.g. 1.5) — keep as float, don't truncate
-                    batt_pct = battery_to_percent(data[batt_key], batt_key)
-                    states.append({'key': 'battery', 'value': batt_pct})
-
-                states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
-                states.append({'key': 'deviceOnline', 'value': True})
-
-                dev.updateStatesOnServer(states)
-                self.last_update_time[dev.id] = datetime.now()
-                self.stale_warned[dev.id]     = False
 
         except Exception as e:
             log(f"Error updating soil devices: {e}", "ERROR")
@@ -1308,34 +1332,37 @@ class Plugin(indigo.PluginBase):
                 if pm_key not in data:
                     continue
 
-                dev = self.get_or_create_device(f"PM2.5 Sensor {sensor}", DEVICE_TYPE_PM25, f"pm25_{sensor}")
-                if not dev:
+                try:
+                    dev = self.get_or_create_device(f"PM2.5 Sensor {sensor}", DEVICE_TYPE_PM25, f"pm25_{sensor}")
+                    if not dev:
+                        continue
+
+                    states = [
+                        {'key': 'sensorNumber', 'value': str(sensor)},
+                        {'key': 'pm25',         'value': str(data[pm_key])},
+                        {'key': 'pm25Unit',     'value': 'ug/m3'}
+                    ]
+
+                    if pm_avg_key in data:
+                        states.append({'key': 'pm25_24h', 'value': str(data[pm_avg_key])})
+
+                    if batt_key in data:
+                        batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                        batt_pct   = battery_to_percent(batt_level, batt_key)
+                        is_low     = batt_pct <= self.battery_threshold
+                        states.append({'key': 'battery', 'value': batt_pct})
+                        states.append({'key': 'batteryLow',   'value': is_low})
+                        self.check_battery_alert(dev, f"PM2.5 sensor {sensor}", is_low)
+
+                    states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    states.append({'key': 'deviceOnline', 'value': True})
+
+                    dev.updateStatesOnServer(states)
+                    self.last_update_time[dev.id] = datetime.now()
+                    self.stale_warned[dev.id]     = False
+                except Exception as e:
+                    log(f"Error updating PM2.5 sensor {sensor}: {e}", "ERROR")
                     continue
-
-                states = [
-                    {'key': 'sensorNumber', 'value': str(sensor)},
-                    {'key': 'pm25',         'value': str(data[pm_key])},
-                    {'key': 'pm25Unit',     'value': 'ug/m3'}
-                ]
-
-                if pm_avg_key in data:
-                    states.append({'key': 'pm25_24h', 'value': str(data[pm_avg_key])})
-
-                if batt_key in data:
-                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
-                    batt_pct   = battery_to_percent(batt_level, batt_key)
-                    is_low     = batt_pct <= self.battery_threshold
-                    states.append({'key': 'battery', 'value': batt_pct})
-                    states.append({'key': 'batteryLow',   'value': is_low})
-                    if is_low:
-                        self.check_battery_alert(dev, f"PM2.5 sensor {sensor}")
-
-                states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
-                states.append({'key': 'deviceOnline', 'value': True})
-
-                dev.updateStatesOnServer(states)
-                self.last_update_time[dev.id] = datetime.now()
-                self.stale_warned[dev.id]     = False
 
             # WH45 all-in-one CO2 + PM2.5/PM10 sensor
             if any(k in data for k in ('pm25_co2', 'pm10_co2', 'co2')):
@@ -1385,8 +1412,7 @@ class Plugin(indigo.PluginBase):
                 is_low     = batt_pct <= self.battery_threshold
                 states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
-                if is_low:
-                    self.check_battery_alert(dev, "lightning sensor")
+                self.check_battery_alert(dev, "lightning sensor", is_low)
 
             states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
             states.append({'key': 'deviceOnline', 'value': True})
@@ -1409,34 +1435,37 @@ class Plugin(indigo.PluginBase):
                 if leak_key not in data:
                     continue
 
-                dev = self.get_or_create_device(f"Leak Sensor {sensor}", DEVICE_TYPE_LEAK, f"leak_{sensor}")
-                if not dev:
+                try:
+                    dev = self.get_or_create_device(f"Leak Sensor {sensor}", DEVICE_TYPE_LEAK, f"leak_{sensor}")
+                    if not dev:
+                        continue
+
+                    leak_value  = str(data[leak_key])
+                    leak_status = "Leak Detected" if leak_value == "1" else "No Leak"
+
+                    states = [
+                        {'key': 'sensorNumber', 'value': str(sensor)},
+                        {'key': 'leakStatus',   'value': leak_status},
+                        {'key': 'leakDetected', 'value': leak_value == "1"}
+                    ]
+
+                    if batt_key in data:
+                        batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                        batt_pct   = battery_to_percent(batt_level, batt_key)
+                        is_low     = batt_pct <= self.battery_threshold
+                        states.append({'key': 'battery', 'value': batt_pct})
+                        states.append({'key': 'batteryLow',   'value': is_low})
+                        self.check_battery_alert(dev, f"leak sensor {sensor}", is_low)
+
+                    states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    states.append({'key': 'deviceOnline', 'value': True})
+
+                    dev.updateStatesOnServer(states)
+                    self.last_update_time[dev.id] = datetime.now()
+                    self.stale_warned[dev.id]     = False
+                except Exception as e:
+                    log(f"Error updating leak sensor {sensor}: {e}", "ERROR")
                     continue
-
-                leak_value  = str(data[leak_key])
-                leak_status = "Leak Detected" if leak_value == "1" else "No Leak"
-
-                states = [
-                    {'key': 'sensorNumber', 'value': str(sensor)},
-                    {'key': 'leakStatus',   'value': leak_status},
-                    {'key': 'leakDetected', 'value': leak_value == "1"}
-                ]
-
-                if batt_key in data:
-                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
-                    batt_pct   = battery_to_percent(batt_level, batt_key)
-                    is_low     = batt_pct <= self.battery_threshold
-                    states.append({'key': 'battery', 'value': batt_pct})
-                    states.append({'key': 'batteryLow',   'value': is_low})
-                    if is_low:
-                        self.check_battery_alert(dev, f"leak sensor {sensor}")
-
-                states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
-                states.append({'key': 'deviceOnline', 'value': True})
-
-                dev.updateStatesOnServer(states)
-                self.last_update_time[dev.id] = datetime.now()
-                self.stale_warned[dev.id]     = False
 
         except Exception as e:
             log(f"Error updating leak devices: {e}", "ERROR")
@@ -1482,8 +1511,7 @@ class Plugin(indigo.PluginBase):
                 is_low     = batt_pct <= self.battery_threshold
                 states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
-                if is_low:
-                    self.check_battery_alert(dev, "water level sensor")
+                self.check_battery_alert(dev, "water level sensor", is_low)
 
             dev.updateStatesOnServer(states)
             self.last_update_time[dev.id] = datetime.now()
@@ -1541,29 +1569,33 @@ class Plugin(indigo.PluginBase):
                 if ec_key not in data:
                     continue  # WH52 sends EC; WH51 does not
 
-                m_key = f"soilmoisture{sensor}"
-                t_key = f"soiltemp{sensor}f"
-                dev   = self.get_or_create_device(f"Soil Sensor {sensor} (WH52)", DEVICE_TYPE_WH52, f"wh52_{sensor}")
-                if not dev:
+                try:
+                    m_key = f"soilmoisture{sensor}"
+                    t_key = f"soiltemp{sensor}f"
+                    dev   = self.get_or_create_device(f"Soil Sensor {sensor} (WH52)", DEVICE_TYPE_WH52, f"wh52_{sensor}")
+                    if not dev:
+                        continue
+
+                    states = [{'key': 'sensorNumber', 'value': str(sensor)}]
+
+                    if m_key in data:
+                        states.append({'key': 'moisture',     'value': str(data[m_key])})
+                        states.append({'key': 'moistureUnit', 'value': '%'})
+
+                    if t_key in data:
+                        states.append({'key': 'temperature',     'value': convert_temperature(data[t_key], self.temperature_unit, self.decimal_places)})
+                        states.append({'key': 'temperatureUnit', 'value': get_unit_suffix('temperature', self.temperature_unit)})
+
+                    states.append({'key': 'ec',          'value': str(data[ec_key])})
+                    states.append({'key': 'ecUnit',      'value': 'uS/cm'})
+                    states.append({'key': 'lastUpdate',  'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    states.append({'key': 'deviceOnline','value': True})
+
+                    dev.updateStatesOnServer(states)
+                    self.last_update_time[dev.id] = datetime.now()
+                except Exception as e:
+                    log(f"Error updating WH52 sensor {sensor}: {e}", "ERROR")
                     continue
-
-                states = [{'key': 'sensorNumber', 'value': str(sensor)}]
-
-                if m_key in data:
-                    states.append({'key': 'moisture',     'value': str(data[m_key])})
-                    states.append({'key': 'moistureUnit', 'value': '%'})
-
-                if t_key in data:
-                    states.append({'key': 'temperature',     'value': convert_temperature(data[t_key], self.temperature_unit, self.decimal_places)})
-                    states.append({'key': 'temperatureUnit', 'value': get_unit_suffix('temperature', self.temperature_unit)})
-
-                states.append({'key': 'ec',          'value': str(data[ec_key])})
-                states.append({'key': 'ecUnit',      'value': 'uS/cm'})
-                states.append({'key': 'lastUpdate',  'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
-                states.append({'key': 'deviceOnline','value': True})
-
-                dev.updateStatesOnServer(states)
-                self.last_update_time[dev.id] = datetime.now()
 
         except Exception as e:
             log(f"Error updating WH52 devices: {e}", "ERROR")
@@ -1642,11 +1674,19 @@ class Plugin(indigo.PluginBase):
                     except Exception:
                         pass
 
-                # Main Gateway: keep connectionStatus and age fresh every tick
+                # Main Gateway: keep connectionStatus and age fresh every tick.
+                # Three-way: Live (fresh) -> Stale (past the timeout) -> Offline
+                # (no data for 3x the timeout, i.e. the feed has genuinely dropped).
                 if dev.deviceTypeId == DEVICE_TYPE_MAIN:
+                    if age_s > self.stale_timeout * 3:
+                        conn_status = "Offline"
+                    elif stale:
+                        conn_status = "Stale"
+                    else:
+                        conn_status = "Live"
                     try:
                         dev.updateStatesOnServer([
-                            {'key': 'connectionStatus', 'value': "Stale" if stale else "Live"},
+                            {'key': 'connectionStatus', 'value': conn_status},
                             {'key': 'lastUpdateAgeSec', 'value': age_s}
                         ])
                     except Exception:
@@ -1659,16 +1699,24 @@ class Plugin(indigo.PluginBase):
     # --------------------------------------------------------------------------
     # PUSHOVER BATTERY ALERTS
     # --------------------------------------------------------------------------
-    def check_battery_alert(self, dev, sensor_label):
+    def check_battery_alert(self, dev, sensor_label, is_low):
         """
-        Send a one-shot Pushover alert when battery goes low.
-        Alert is suppressed for the remainder of the plugin session once sent.
-        Reset is only on plugin restart, not when battery recovers.
+        Send a one-shot Pushover alert when a sensor's battery goes low.
+
+        The one-shot latch now CLEARS when the battery recovers above the
+        threshold, so a battery that dips, is replaced, then dips again raises a
+        fresh alert — previously the latch only reset on a plugin restart, so a
+        second genuine low was silently missed for the rest of the session.
         """
+        if not is_low:
+            # Battery healthy — re-arm so the next genuine low alerts again.
+            self.battery_alerted.pop(dev.id, None)
+            return
+
         if not self.pushover_enabled:
             return
         if self.battery_alerted.get(dev.id, False):
-            return  # Already alerted for this device this session
+            return  # Already alerted for this device this low episode
 
         sent = self.send_pushover_alert(
             title   = "Ecowitt Low Battery",
@@ -1963,7 +2011,11 @@ class Plugin(indigo.PluginBase):
 
     def showPluginInfo(self, valuesDict=None, typeId=None):
         """Menu: Re-run the startup banner on demand."""
+        server_ip = self.indigo_server_ip or self.get_server_ip()
+        http_state = "running" if self.server_running else "STOPPED"
         extras = [
+            ("HTTP Server:",         f"{self.listen_address}:{self.http_port}  ({http_state})"),
+            ("Point Gateway At:",    f"http://{server_ip}:{self.http_port}/data/report/"),
             ("Compatible Hardware:", "Ecowitt / Fine Offset / Ambient / Froggit / Aercus / Bresser"),
             ("Timestamps in Log:",   "ON" if self.timestamp_enabled else "OFF"),
         ]

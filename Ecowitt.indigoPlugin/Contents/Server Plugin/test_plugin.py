@@ -268,5 +268,143 @@ class TestConfigCoercionGuards:
         assert p.lds_tank_height == 1500
 
 
+# ==========================================================================
+# FEELS-LIKE BAND SWITCHING  (>=80 heat index, <=50 wind chill, else air temp)
+# ==========================================================================
+class TestFeelsLike:
+    def test_hot_uses_heat_index(self):
+        # 85 degF -> heat index path; with humidity it reads above the air temp
+        assert plugin.calculate_feels_like(85, 70, 5) > 85.0
+
+    def test_cold_uses_wind_chill(self):
+        # 40 degF + wind -> wind chill path, below the air temp
+        assert plugin.calculate_feels_like(40, 50, 20) < 40.0
+
+    def test_comfortable_band_returns_air_temp(self):
+        assert plugin.calculate_feels_like(65, 50, 5) == 65
+
+    def test_bad_input_returns_none(self):
+        assert plugin.calculate_feels_like("x", 50, 5) is None
+
+
+# ==========================================================================
+# VPD  (Magnus/Tetens, 2dp string, clamped >= 0)
+# ==========================================================================
+class TestVpd:
+    def test_saturated_air_is_zero(self):
+        assert plugin.calculate_vpd(20, 100) == "0.0"
+
+    def test_half_humidity(self):
+        assert abs(float(plugin.calculate_vpd(20, 50)) - 1.17) < 0.05
+
+    def test_bad_input_returns_zero(self):
+        assert plugin.calculate_vpd("x", 50) == "0.0"
+
+
+# ==========================================================================
+# WIND CARDINAL  (16-point compass boundaries)
+# ==========================================================================
+class TestWindCardinal:
+    def test_cardinals(self):
+        assert plugin.get_wind_cardinal(0) == "N"
+        assert plugin.get_wind_cardinal(90) == "E"
+        assert plugin.get_wind_cardinal(180) == "S"
+        assert plugin.get_wind_cardinal(270) == "W"
+
+    def test_wraps_at_360(self):
+        assert plugin.get_wind_cardinal(360) == "N"
+
+    def test_intercardinal(self):
+        assert plugin.get_wind_cardinal(45) == "NE"
+
+    def test_bad_input(self):
+        assert plugin.get_wind_cardinal("x") == "N/A"
+
+
+# ==========================================================================
+# UNIT SUFFIX + ROUND VALUE
+# ==========================================================================
+class TestUnitSuffixAndRound:
+    def test_known_suffixes(self):
+        assert plugin.get_unit_suffix("temperature", "C") == "degC"
+        assert plugin.get_unit_suffix("wind", "kmh") == "km/h"
+
+    def test_unknown_falls_back_to_target(self):
+        assert plugin.get_unit_suffix("temperature", "K") == "K"
+
+    def test_round_value(self):
+        assert plugin.round_value(1.2345, 2) == "1.23"
+        assert plugin.round_value(20, 1) == "20.0"
+
+    def test_round_value_bad_input(self):
+        assert plugin.round_value("abc") == "abc"
+
+
+# ==========================================================================
+# POST-BODY PARSING  (URL-encoding, unquote, malformed pairs)
+# ==========================================================================
+class TestParsePostData:
+    def _plugin(self):
+        p = plugin.Plugin.__new__(plugin.Plugin)
+        p.__init__("com.clives.indigoplugin.ecowitt", "Ecowitt", "2.4.0", {})
+        return p
+
+    def test_basic_pairs(self):
+        p = self._plugin()
+        out = p.parse_post_data("tempf=68.0&humidity=55&PASSKEY=ABC")
+        assert out == {"tempf": "68.0", "humidity": "55", "PASSKEY": "ABC"}
+
+    def test_url_decoding(self):
+        p = self._plugin()
+        out = p.parse_post_data("model=WS%20View&stationtype=EasyWeather")
+        assert out["model"] == "WS View"
+
+    def test_malformed_pairs_skipped(self):
+        p = self._plugin()
+        out = p.parse_post_data("a=1&garbage&b=2")
+        assert out == {"a": "1", "b": "2"}
+
+
+# ==========================================================================
+# BATTERY-ALERT LATCH  (re-arms on recovery)
+# ==========================================================================
+class TestBatteryAlertLatch:
+    class _Dev:
+        def __init__(self, dev_id, name):
+            self.id = dev_id
+            self.name = name
+
+    def _plugin(self):
+        p = plugin.Plugin.__new__(plugin.Plugin)
+        p.__init__("com.clives.indigoplugin.ecowitt", "Ecowitt", "2.4.0", {})
+        p.pushover_enabled = True
+        p.battery_alerted = {}
+        p._sends = 0
+
+        def _fake_send(title, message):
+            p._sends += 1
+            return True
+
+        p.send_pushover_alert = _fake_send
+        return p
+
+    def test_recovery_rearms_latch(self):
+        p = self._plugin()
+        dev = self._Dev(101, "Leak Sensor 1")
+
+        # First low -> one alert, latched.
+        p.check_battery_alert(dev, "leak sensor 1", True)
+        assert p._sends == 1
+        # Still low -> suppressed (one-shot).
+        p.check_battery_alert(dev, "leak sensor 1", True)
+        assert p._sends == 1
+        # Battery recovers -> latch clears.
+        p.check_battery_alert(dev, "leak sensor 1", False)
+        assert 101 not in p.battery_alerted
+        # New low episode -> alerts again (previously silently missed).
+        p.check_battery_alert(dev, "leak sensor 1", True)
+        assert p._sends == 2
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

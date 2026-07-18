@@ -9,7 +9,7 @@ Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors,
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.3.0
+**Version:** 2.4.0
 
 ---
 
@@ -62,6 +62,14 @@ across restarts. Defaults to ON.
 ---
 
 ## Recent changes
+
+**v2.4.0** — improvements building on the v2.3.0 fixes (test suite now 65 tests).
+
+- Low-battery alerts work properly for a battery that goes flat more than once. The alert now re-arms when a battery is replaced, so the next time it runs down you are told again — previously a second low was only noticed after a plugin restart.
+- One misbehaving sensor channel can no longer stop the other channels in the same group from updating.
+- The Main Gateway now shows an "Offline" connection status when the station has genuinely stopped reporting, in addition to the existing Live and Stale states.
+- If the plugin can't start its receiver (for example the port is already in use) it now honestly reports the server as stopped instead of claiming it is running.
+- **Show Plugin Info** now prints the exact address to point your weather station at — handy when setting up or asking for help.
 
 **v2.3.0** — a round of reliability fixes, plus the plugin's first test suite (46 tests).
 
