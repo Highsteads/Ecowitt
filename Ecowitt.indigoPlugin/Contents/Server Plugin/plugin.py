@@ -6,9 +6,28 @@
 #              Compatible with Ecowitt, Fine Offset, Ambient Weather, Froggit,
 #              Aercus Instruments, Bresser and other brands using the same protocol.
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
-# Author:      CliveS & Claude Opus 4.8
-# Date:        15-06-2026
-# Version:     2.2.6
+# Author:      CliveS & Claude Fable 5
+# Date:        18-07-2026
+# Version:     2.3.0
+#
+# v2.3.0 (18-07-2026): Deep-review bug-fix batch (first-ever test suite, 46 tests).
+# - CRITICAL: a blank numeric config field (httpPort / dataStaleTimeout /
+#   batteryLowThreshold / updateInterval / ldsTankHeight) no longer crashes the
+#   plugin at load — all coercions go through a guarded `_as_int` helper, and
+#   validatePrefsConfigUi now also validates batteryLowThreshold + updateInterval.
+# - HIGH: battery_to_percent now decodes THREE encodings by field name — the
+#   0-5 LEVEL sensors (pm25batt*, leakbatt*, co2_batt, wh57batt) were read as a
+#   binary flag, so a DEAD sensor (raw 0) reported 100% and never raised a low
+#   alert.  Added the WS80/WS90/WH68 multi-cell voltage span (~2.3-3.3V).
+# - HIGH: the raw HTTP reader now honours Content-Length (a POST body split
+#   across TCP packets was truncated), with an accepted-socket timeout and a
+#   256KB request cap.
+# - MEDIUM: each per-sensor updater is now dispatched in isolation, so a raise
+#   in one sensor no longer drops every later sensor in the same push; soil +
+#   WH52 channel loops widened to 16; rain/lightning battery no longer wrapped
+#   in an unguarded int(); ldsTankHeight division extracted to a guarded
+#   lds_percent() helper; batteryLowThreshold config text corrected to percent
+#   (default raised 1 -> 20).
 #
 # v2.2.6 (15-06-2026): Outdoor Sensor gains two computed states — `feelsLike`
 # (apparent temperature) and `heatIndex` — alongside the existing dew point /
@@ -107,6 +126,11 @@ HTTP_PORT        = 8088
 LISTEN_ADDRESS   = "0.0.0.0"
 UPDATE_FOLDER_ID = 0
 
+# Accepted-socket read timeout (seconds) and a hard cap on request size so a
+# stalled or oversized push can never wedge a handler thread or exhaust memory.
+HTTP_CLIENT_TIMEOUT    = 10
+HTTP_MAX_REQUEST_BYTES = 256 * 1024
+
 DEVICE_TYPE_MAIN         = "ecowittMain"
 DEVICE_TYPE_OUTDOOR      = "ecowittOutdoor"
 DEVICE_TYPE_INDOOR       = "ecowittIndoor"
@@ -152,6 +176,20 @@ def round_value(value, decimal_places=1):
         return str(round(float(value), decimal_places))
     except Exception:
         return str(value)
+
+
+def _as_int(value, default):
+    """Coerce a config value to int, returning default on blank/non-numeric input.
+
+    After a config dialog SAVE, Indigo re-serialises textfield values as strings,
+    and a cleared field is an EMPTY string (not an absent key) — so int("") would
+    raise ValueError on the __init__ hot path and stop the plugin loading. This
+    guards every numeric-pref coercion so a blank field can never brick the load.
+    """
+    try:
+        return int(str(value).strip())
+    except (ValueError, TypeError, AttributeError):
+        return default
 
 
 def convert_temperature(fahrenheit, target_unit="C", decimal_places=1):
@@ -319,28 +357,76 @@ def calculate_feels_like(temp_f, humidity_pct, wind_mph):
     return t
 
 
-def battery_to_percent(raw_value):
+# 0-5 LEVEL battery sensors (0 = dead -> 0%, 5 = full -> 100%). These share the
+# raw 0/1 range with binary flags but mean the OPPOSITE at 0, so they MUST be
+# matched by field name — a raw 0 here is a FLAT battery, not "OK".
+_BATT_LEVEL_FIELDS = ("pm25batt", "leakbatt", "co2_batt", "wh57batt")
+
+# Multi-cell VOLTAGE array sensors whose span is ~2.3V (empty) to 3.3V (full),
+# not the 1.2-1.6V single-cell span used by soil/leaf probes.
+_BATT_VOLTAGE_HI_FIELDS = ("wh80batt", "ws80batt", "wh90batt", "ws90batt", "ws85batt", "wh68batt")
+
+
+def battery_to_percent(raw_value, field_name=""):
     """Normalise an Ecowitt battery payload field into a 0-100 percentage.
 
-    Ecowitt uses two encodings depending on the sensor:
-      * Binary flag (0 = OK, 1 = Low) — wh65batt, wh26batt, wh25batt, wh40batt,
-        wh57batt, pm25batt1-4, leakbatt1-4, etc.
-      * Voltage in volts (typical 1.2V flat / 1.6V full) — soilbatt1-16,
-        tf_batt1-8, tempfbatt1-8, wh34batt1-8, wh35batt1-8, lds_batt, etc.
+    Ecowitt uses THREE encodings and the field NAME is required to decode them,
+    because the same raw number means opposite things:
+      * 0-5 LEVEL (pm25batt*, leakbatt*, co2_batt, wh57batt): 0 = dead -> 0%,
+        5 = full -> 100%. A raw 0 here is a FLAT battery, NOT "OK" — decoding it
+        as binary reported a dead sensor as 100% and never fired the low alert.
+      * Binary flag (0 = OK -> 100%, 1 = Low -> 0%): the WH65/WH26/WH25/WH40
+        family single-bit fields.
+      * Voltage in volts: single-cell soil/leaf probes span ~1.2-1.6V; the
+        WS80/WS90/WH68 array sensors span ~2.3-3.3V (matched by name).
 
-    Returns a 0-100 integer percentage suitable for Indigo's native batteryLevel
-    property and our own `battery` custom state.
+    `field_name` is the raw Ecowitt key so the encoding can be chosen; it
+    defaults to "" (legacy binary-or-single-cell-voltage guess).  Returns a
+    0-100 integer percentage.
     """
     try:
         v = float(raw_value)
     except (TypeError, ValueError):
         return 0
+
+    name = (field_name or "").lower()
+
+    # 0-5 LEVEL sensors — decode by name (raw 0 = dead here, not "OK").
+    if any(name.startswith(p) for p in _BATT_LEVEL_FIELDS):
+        level = max(0.0, min(5.0, v))
+        return int(round(level / 5.0 * 100.0))
+
+    # Multi-cell voltage array sensors (~2.3V empty, 3.3V full).
+    if any(name.startswith(p) for p in _BATT_VOLTAGE_HI_FIELDS):
+        pct = (v - 2.3) / 1.0 * 100.0
+        return max(0, min(100, int(round(pct))))
+
+    # Binary flag: 0 = OK -> 100%, 1 = Low -> 0%.
     if v <= 1.0:
-        # Binary: 0 = OK -> 100%, 1 = Low -> 0%
         return 100 if v == 0 else 0
-    # Voltage: linear interpolation between 1.2V (dead) and 1.6V (full)
+
+    # Single-cell voltage (soil/leaf/lds): 1.2V dead, 1.6V full.
     pct = (v - 1.2) / 0.4 * 100.0
     return max(0, min(100, int(round(pct))))
+
+
+def lds_percent(dist_mm, tank_h):
+    """Water-level fill percentage for a laser distance sensor.
+
+    `dist_mm` is the measured gap from the sensor down to the water surface;
+    `tank_h` is the configured full-tank height. Returns 0.0-100.0. A zero or
+    negative tank height (blank/garbage config) yields 0.0 rather than dividing
+    by zero.
+    """
+    try:
+        tank_h  = float(tank_h)
+        dist_mm = float(dist_mm)
+    except (TypeError, ValueError):
+        return 0.0
+    if tank_h <= 0:
+        return 0.0
+    water_mm = max(0.0, tank_h - dist_mm)
+    return min(100.0, max(0.0, (water_mm / tank_h) * 100.0))
 
 
 # ==============================================================================
@@ -354,7 +440,7 @@ class Plugin(indigo.PluginBase):
 
         # -- Server config
         self.indigo_server_ip   = pluginPrefs.get("indigoServerIP", "")
-        self.http_port          = int(pluginPrefs.get("httpPort", HTTP_PORT))
+        self.http_port          = _as_int(pluginPrefs.get("httpPort"), HTTP_PORT)
         self.listen_address     = pluginPrefs.get("listenAddress", LISTEN_ADDRESS)
 
         # -- Unit preferences
@@ -366,15 +452,15 @@ class Plugin(indigo.PluginBase):
 
         # -- Device settings
         self.auto_create        = pluginPrefs.get("autoCreateDevices", True)
-        self.device_folder      = int(pluginPrefs.get("deviceFolder", UPDATE_FOLDER_ID))
+        self.device_folder      = _as_int(pluginPrefs.get("deviceFolder"), UPDATE_FOLDER_ID)
         self.device_prefix      = pluginPrefs.get("devicePrefix", "Ecowitt")
         self.include_station_id = pluginPrefs.get("includeStationInName", False)
 
         # -- Data processing
-        self.stale_timeout      = int(pluginPrefs.get("dataStaleTimeout", 300))
-        self.decimal_places     = int(pluginPrefs.get("decimalPlaces", 1))
-        self.battery_threshold  = int(pluginPrefs.get("batteryLowThreshold", 1))
-        self.update_interval    = int(pluginPrefs.get("updateInterval", 30))
+        self.stale_timeout      = _as_int(pluginPrefs.get("dataStaleTimeout"), 300)
+        self.decimal_places     = _as_int(pluginPrefs.get("decimalPlaces"), 1)
+        self.battery_threshold  = _as_int(pluginPrefs.get("batteryLowThreshold"), 20)
+        self.update_interval    = _as_int(pluginPrefs.get("updateInterval"), 30)
 
         # -- Pushover battery alerts
         self.pushover_enabled   = pluginPrefs.get("enablePushover", False)
@@ -390,7 +476,7 @@ class Plugin(indigo.PluginBase):
 
         # -- LDS01 water level sensor
         self.lds_enabled        = pluginPrefs.get("enableLDS", False)
-        self.lds_tank_height    = int(pluginPrefs.get("ldsTankHeight", 1000))
+        self.lds_tank_height    = _as_int(pluginPrefs.get("ldsTankHeight"), 1000)
 
         # -- Logging options
         self.debug              = pluginPrefs.get("showDebugInfo", False)
@@ -565,14 +651,41 @@ class Plugin(indigo.PluginBase):
     def handle_client(self, client_socket, client_address):
         """Handle one incoming HTTP connection from the gateway."""
         try:
+            # Never block the handler thread forever on a stalled/half-open socket.
+            client_socket.settimeout(HTTP_CLIENT_TIMEOUT)
+
+            # Read the headers first, then keep reading until the full body
+            # (per Content-Length) has arrived. The Ecowitt POST body is often
+            # split across TCP packets, so stopping at the header terminator
+            # truncated the payload and silently dropped fields.
             request_data = b""
-            while True:
+            while b"\r\n\r\n" not in request_data:
                 chunk = client_socket.recv(4096)
                 if not chunk:
                     break
                 request_data += chunk
-                if b"\r\n\r\n" in request_data:
-                    break
+                if len(request_data) > HTTP_MAX_REQUEST_BYTES:
+                    log(f"Request from {client_address[0]} exceeded {HTTP_MAX_REQUEST_BYTES} bytes — dropping", "WARNING")
+                    return
+
+            header_end = request_data.find(b"\r\n\r\n")
+            if header_end != -1:
+                header_blob   = request_data[:header_end].decode('utf-8', errors='replace')
+                content_length = 0
+                for hline in header_blob.split('\r\n'):
+                    if hline.lower().startswith("content-length:"):
+                        content_length = _as_int(hline.split(':', 1)[1], 0)
+                        break
+                body_have = len(request_data) - (header_end + 4)
+                while body_have < content_length:
+                    chunk = client_socket.recv(4096)
+                    if not chunk:
+                        break
+                    request_data += chunk
+                    body_have += len(chunk)
+                    if len(request_data) > HTTP_MAX_REQUEST_BYTES:
+                        log(f"Request from {client_address[0]} exceeded {HTTP_MAX_REQUEST_BYTES} bytes — dropping", "WARNING")
+                        return
 
             request_str   = request_data.decode('utf-8', errors='replace')
             request_lines = request_str.split('\r\n')
@@ -635,41 +748,34 @@ class Plugin(indigo.PluginBase):
             if self.debug:
                 log(f"Processing: station={data.get('stationtype', '?')} model={data.get('model', '?')}")
 
-            self.update_main_device(data)
-
-            if 'tempf' in data or 'humidity' in data:
-                self.update_outdoor_device(data)
-
-            if 'tempinf' in data or 'humidityin' in data:
-                self.update_indoor_device(data)
-
-            if 'windspeedmph' in data or 'winddir' in data:
-                self.update_wind_device(data)
-
-            if 'rainratein' in data or 'dailyrainin' in data:
-                self.update_rain_device(data)
-
-            if 'solarradiation' in data or 'uv' in data:
-                self.update_solar_device(data)
-
-            self.update_multichannel_devices(data)
-            self.update_soil_devices(data)
-            self.update_pm25_devices(data)
-
-            if 'lightning_num' in data or 'lightning_time' in data:
-                self.update_lightning_device(data)
-
-            self.update_leak_devices(data)
-
-            if self.lds_enabled:
-                self.update_lds_device(data)
-
-            # WH46 7-in-1 air quality (PM1 and PM4 distinguish from WH45)
-            if 'pm1_co2' in data or 'pm4_co2' in data:
-                self.update_wh46_device(data)
-
-            self.update_wh52_devices(data)
-            self.update_wn38_device(data)
+            # Each updater is dispatched in isolation: a raise in one sensor's
+            # updater must NOT drop every later sensor for this push. Entries are
+            # (name, condition, updater) — condition None = always run.
+            updaters = [
+                ("main",         True,                                          self.update_main_device),
+                ("outdoor",      'tempf' in data or 'humidity' in data,         self.update_outdoor_device),
+                ("indoor",       'tempinf' in data or 'humidityin' in data,     self.update_indoor_device),
+                ("wind",         'windspeedmph' in data or 'winddir' in data,   self.update_wind_device),
+                ("rain",         'rainratein' in data or 'dailyrainin' in data, self.update_rain_device),
+                ("solar",        'solarradiation' in data or 'uv' in data,      self.update_solar_device),
+                ("multichannel", True,                                          self.update_multichannel_devices),
+                ("soil",         True,                                          self.update_soil_devices),
+                ("pm25",         True,                                          self.update_pm25_devices),
+                ("lightning",    'lightning_num' in data or 'lightning_time' in data, self.update_lightning_device),
+                ("leak",         True,                                          self.update_leak_devices),
+                ("lds",          self.lds_enabled,                              self.update_lds_device),
+                # WH46 7-in-1 air quality (PM1 and PM4 distinguish from WH45)
+                ("wh46",         'pm1_co2' in data or 'pm4_co2' in data,        self.update_wh46_device),
+                ("wh52",         True,                                          self.update_wh52_devices),
+                ("wn38",         True,                                          self.update_wn38_device),
+            ]
+            for name, condition, updater in updaters:
+                if not condition:
+                    continue
+                try:
+                    updater(data)
+                except Exception as e:
+                    log(f"Error updating {name} device(s): {e}", "ERROR")
 
         except Exception as e:
             log(f"Error processing weather data: {e}", "ERROR")
@@ -927,8 +1033,8 @@ class Plugin(indigo.PluginBase):
             # Battery — HP2561 may report wh65batt, wh25batt, or wh26batt
             for batt_key in ('wh65batt', 'wh25batt', 'wh26batt'):
                 if batt_key in data:
-                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
-                    batt_pct   = battery_to_percent(batt_level)
+                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                    batt_pct   = battery_to_percent(batt_level, batt_key)
                     is_low     = batt_pct <= self.battery_threshold
                     states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
@@ -1016,8 +1122,8 @@ class Plugin(indigo.PluginBase):
             # Battery — covers WS80, WS90, WS85, WS68 variants
             for batt_key in ('wh80batt', 'ws90batt', 'ws85batt', 'wh68batt'):
                 if batt_key in data:
-                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
-                    batt_pct   = battery_to_percent(batt_level)
+                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                    batt_pct   = battery_to_percent(batt_level, batt_key)
                     is_low     = batt_pct <= self.battery_threshold
                     states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
@@ -1063,8 +1169,8 @@ class Plugin(indigo.PluginBase):
             states.append({'key': 'rainUnit', 'value': get_unit_suffix('rain', self.rain_unit)})
 
             if 'wh40batt' in data:
-                batt_level = int(data['wh40batt'])
-                batt_pct   = battery_to_percent(batt_level)
+                batt_level = data['wh40batt']  # keep raw — battery_to_percent decodes by name
+                batt_pct   = battery_to_percent(batt_level, 'wh40batt')
                 is_low     = batt_pct <= self.battery_threshold
                 states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
@@ -1136,8 +1242,8 @@ class Plugin(indigo.PluginBase):
                     states.append({'key': 'humidity', 'value': str(data[hum_key])})
 
                 if batt_key in data:
-                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
-                    batt_pct   = battery_to_percent(batt_level)
+                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                    batt_pct   = battery_to_percent(batt_level, batt_key)
                     is_low     = batt_pct <= self.battery_threshold
                     states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
@@ -1156,9 +1262,9 @@ class Plugin(indigo.PluginBase):
 
 
     def update_soil_devices(self, data):
-        """WH51 soil moisture sensors (up to 8 channels)."""
+        """WH51 soil moisture sensors (up to 16 channels)."""
         try:
-            for sensor in range(1, 9):
+            for sensor in range(1, 17):
                 m_key    = f"soilmoisture{sensor}"
                 batt_key = f"soilbatt{sensor}"
 
@@ -1177,7 +1283,7 @@ class Plugin(indigo.PluginBase):
 
                 if batt_key in data:
                     # soilbatt* is voltage (e.g. 1.5) — keep as float, don't truncate
-                    batt_pct = battery_to_percent(data[batt_key])
+                    batt_pct = battery_to_percent(data[batt_key], batt_key)
                     states.append({'key': 'battery', 'value': batt_pct})
 
                 states.append({'key': 'lastUpdate',   'value': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
@@ -1216,8 +1322,8 @@ class Plugin(indigo.PluginBase):
                     states.append({'key': 'pm25_24h', 'value': str(data[pm_avg_key])})
 
                 if batt_key in data:
-                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
-                    batt_pct   = battery_to_percent(batt_level)
+                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                    batt_pct   = battery_to_percent(batt_level, batt_key)
                     is_low     = batt_pct <= self.battery_threshold
                     states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
@@ -1274,8 +1380,8 @@ class Plugin(indigo.PluginBase):
                 states.append({'key': 'lastStrike', 'value': str(data['lightning_time'])})
 
             if 'wh57batt' in data:
-                batt_level = int(data['wh57batt'])
-                batt_pct   = battery_to_percent(batt_level)
+                batt_level = data['wh57batt']  # 0-5 level — keep raw, decoded by name
+                batt_pct   = battery_to_percent(batt_level, 'wh57batt')
                 is_low     = batt_pct <= self.battery_threshold
                 states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
@@ -1317,8 +1423,8 @@ class Plugin(indigo.PluginBase):
                 ]
 
                 if batt_key in data:
-                    batt_level = data[batt_key]  # may be int (binary 0/1) or float (voltage)
-                    batt_pct   = battery_to_percent(batt_level)
+                    batt_level = data[batt_key]  # binary 0/1, 0-5 level, or voltage — decoded by name
+                    batt_pct   = battery_to_percent(batt_level, batt_key)
                     is_low     = batt_pct <= self.battery_threshold
                     states.append({'key': 'battery', 'value': batt_pct})
                     states.append({'key': 'batteryLow',   'value': is_low})
@@ -1358,7 +1464,7 @@ class Plugin(indigo.PluginBase):
 
             tank_h    = float(self.lds_tank_height)
             water_mm  = max(0.0, tank_h - dist_mm)
-            water_pct = min(100.0, max(0.0, (water_mm / tank_h) * 100.0)) if tank_h > 0 else 0.0
+            water_pct = lds_percent(dist_mm, tank_h)
 
             states = [
                 {'key': 'distanceMm',    'value': str(round(dist_mm, 1))},
@@ -1372,7 +1478,7 @@ class Plugin(indigo.PluginBase):
             if 'ldsbatt' in data:
                 # ldsbatt is a voltage (e.g. 1.5); battery_to_percent does its own
                 # guarded float() — int("1.5") would raise ValueError and abort the update.
-                batt_pct   = battery_to_percent(data['ldsbatt'])
+                batt_pct   = battery_to_percent(data['ldsbatt'], 'ldsbatt')
                 is_low     = batt_pct <= self.battery_threshold
                 states.append({'key': 'battery', 'value': batt_pct})
                 states.append({'key': 'batteryLow',   'value': is_low})
@@ -1426,11 +1532,11 @@ class Plugin(indigo.PluginBase):
 
     def update_wh52_devices(self, data):
         """
-        WH52 soil moisture + temperature + EC sensors.
+        WH52 soil moisture + temperature + EC sensors (up to 16 channels).
         Identified by presence of soilec fields (WH51 does not send EC).
         """
         try:
-            for sensor in range(1, 9):
+            for sensor in range(1, 17):
                 ec_key = f"soilec{sensor}"
                 if ec_key not in data:
                     continue  # WH52 sends EC; WH51 does not
@@ -1739,6 +1845,20 @@ class Plugin(indigo.PluginBase):
         except ValueError:
             errorDict["ldsTankHeight"] = "Must be a valid number (mm)"
 
+        try:
+            b = int(valuesDict.get("batteryLowThreshold", 20))
+            if not (0 <= b <= 100):
+                errorDict["batteryLowThreshold"] = "Low-battery threshold must be 0-100%"
+        except ValueError:
+            errorDict["batteryLowThreshold"] = "Must be a valid number (percent)"
+
+        try:
+            u = int(valuesDict.get("updateInterval", 30))
+            if u < 1:
+                errorDict["updateInterval"] = "Update interval must be at least 1 second"
+        except ValueError:
+            errorDict["updateInterval"] = "Must be a valid number (seconds)"
+
         if len(errorDict) > 0:
             return (False, valuesDict, errorDict)
         return (True, valuesDict)
@@ -1753,7 +1873,7 @@ class Plugin(indigo.PluginBase):
         old_address = self.listen_address
 
         self.indigo_server_ip   = valuesDict.get("indigoServerIP", "")
-        self.http_port          = int(valuesDict.get("httpPort", HTTP_PORT))
+        self.http_port          = _as_int(valuesDict.get("httpPort"), HTTP_PORT)
         self.listen_address     = valuesDict.get("listenAddress", LISTEN_ADDRESS)
 
         self.temperature_unit   = valuesDict.get("temperatureUnit", "C")
@@ -1763,14 +1883,14 @@ class Plugin(indigo.PluginBase):
         self.distance_unit      = valuesDict.get("distanceUnit", "km")
 
         self.auto_create        = valuesDict.get("autoCreateDevices", True)
-        self.device_folder      = int(valuesDict.get("deviceFolder", UPDATE_FOLDER_ID))
+        self.device_folder      = _as_int(valuesDict.get("deviceFolder"), UPDATE_FOLDER_ID)
         self.device_prefix      = valuesDict.get("devicePrefix", "Ecowitt")
         self.include_station_id = valuesDict.get("includeStationInName", False)
 
-        self.stale_timeout      = int(valuesDict.get("dataStaleTimeout", 300))
-        self.decimal_places     = int(valuesDict.get("decimalPlaces", 1))
-        self.battery_threshold  = int(valuesDict.get("batteryLowThreshold", 1))
-        self.update_interval    = int(valuesDict.get("updateInterval", 30))
+        self.stale_timeout      = _as_int(valuesDict.get("dataStaleTimeout"), 300)
+        self.decimal_places     = _as_int(valuesDict.get("decimalPlaces"), 1)
+        self.battery_threshold  = _as_int(valuesDict.get("batteryLowThreshold"), 20)
+        self.update_interval    = _as_int(valuesDict.get("updateInterval"), 30)
 
         self.pushover_enabled   = valuesDict.get("enablePushover", False)
         self.pushover_device    = valuesDict.get("pushoverDevice", "")
@@ -1779,7 +1899,7 @@ class Plugin(indigo.PluginBase):
                                    or (valuesDict.get("expectedPasskey", "") or "").strip())
 
         self.lds_enabled        = valuesDict.get("enableLDS", False)
-        self.lds_tank_height    = int(valuesDict.get("ldsTankHeight", 1000))
+        self.lds_tank_height    = _as_int(valuesDict.get("ldsTankHeight"), 1000)
 
         self.debug              = valuesDict.get("showDebugInfo", False)
         self.log_raw_data       = valuesDict.get("logRawData", False)

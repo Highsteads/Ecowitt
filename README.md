@@ -4,12 +4,12 @@
 
 Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors, multi-channel temperature/humidity, wind, rain and solar/UV sensors automatically and exposes live data as native Indigo devices. Computes useful extras with no extra hardware: dew point, VPD, wind chill, feels-like (apparent temperature) and heat index.
 
-**Author:** CliveS & Claude Sonnet 4.6
+**Author:** CliveS & Claude
 **Platform:** Indigo 2022.1 or later, macOS (Python 3.10+ bundled with Indigo)
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.2.6
+**Version:** 2.3.0
 
 ---
 
@@ -58,6 +58,18 @@ To turn the prefix off (or back on) at any time:
 
 The setting is stored in `pluginPrefs` (`enableTimestampLogging`) and persists
 across restarts. Defaults to ON.
+
+---
+
+## Recent changes
+
+**v2.3.0** — a round of reliability fixes, plus the plugin's first test suite (46 tests).
+
+- Blank or cleared numeric settings no longer stop the plugin from loading. If a field like the HTTP port, stale-data timeout or low-battery threshold was ever left empty, the plugin now quietly falls back to its default instead of failing to start.
+- Battery reporting is much more accurate. Ecowitt sends battery readings in three different ways depending on the sensor, and the plugin now recognises each one properly. In particular, a flat battery on a PM2.5, leak or lightning sensor used to show as 100% full and never raise a low-battery warning — that is now reported correctly, so those alerts actually fire.
+- Readings from the gateway are read in full even when the network splits the message across packets, so no fields get dropped.
+- One misbehaving sensor in an upload can no longer stop the others in the same upload from updating. Soil and WH52 sensors now support up to 16 channels.
+- The low-battery threshold is now a straightforward percentage (0-100, default 20), and works consistently across every sensor type.
 
 ---
 

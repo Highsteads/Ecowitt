@@ -135,9 +135,9 @@
         <Description>Mark device offline if no data received for this many seconds. Minimum 60. Default: 300 (5 minutes).</Description>
     </Field>
 
-    <Field id="batteryLowThreshold" type="textfield" defaultValue="1">
-        <Label>Battery Low Threshold:</Label>
-        <Description>Battery value at or below this triggers low battery status. Most Ecowitt sensors use 0=OK / 1=Low. Default: 1.</Description>
+    <Field id="batteryLowThreshold" type="textfield" defaultValue="20">
+        <Label>Battery Low Threshold (%):</Label>
+        <Description>Trigger low-battery status when a sensor's battery is at or below this percentage (0-100). All sensors are normalised to a percentage, so this works across binary, 0-5 level and voltage sensors alike. Default: 20.</Description>
     </Field>
 
     <Field id="updateInterval" type="textfield" defaultValue="30">
