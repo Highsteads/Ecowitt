@@ -8,7 +8,13 @@
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Fable 5
 # Date:        18-07-2026
-# Version:     2.4.0
+# Version:     2.4.1
+#
+# v2.4.1 (21-07-2026): LOG-LEVEL FIX. indigo.server.log(level=...) wants a Python
+# logging INT — a STRING is silently ignored and the line logs as plain Info.
+# The log() helper passed its level name straight through, so every WARNING and
+# ERROR raised through it had been appearing as an ordinary Info line. Added
+# _lvl() to map the name to a real level. Estate-wide sweep (38 files).
 #
 # v2.4.0 (18-07-2026): Deep-review improvements batch (tests 46 -> 65).
 # - Low-battery alert latch now RE-ARMS on battery recovery — a battery that
@@ -177,12 +183,36 @@ _TIMESTAMP_LOGGING = True
 # ==============================================================================
 # HELPER FUNCTIONS
 # ==============================================================================
+import logging
+
+
+_LOG_LEVELS = {
+    "DEBUG":   logging.DEBUG,
+    "INFO":    logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR":   logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
+
+
+def _lvl(level):
+    """Map a level NAME to a Python logging int.
+
+    indigo.server.log(level=...) wants an int. A STRING is silently ignored
+    and the line logs as plain Info, which hid every WARNING and ERROR raised
+    through log() until this was corrected (21-07-2026).
+    """
+    if isinstance(level, int):
+        return level
+    return _LOG_LEVELS.get(str(level).upper(), logging.INFO)
+
+
 def log(message, level="INFO"):
     """Custom log with optional [HH:MM:SS] timestamp prefix."""
     if _TIMESTAMP_LOGGING:
-        indigo.server.log(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] {message}", level=level)
+        indigo.server.log(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] {message}", level=_lvl(level))
     else:
-        indigo.server.log(message, level=level)
+        indigo.server.log(message, level=_lvl(level))
 
 
 def round_value(value, decimal_places=1):
