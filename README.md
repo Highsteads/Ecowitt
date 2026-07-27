@@ -9,7 +9,7 @@ Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors,
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.4.0
+**Version:** 2.4.2
 
 ---
 
@@ -20,6 +20,37 @@ Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors,
 3. Double-click `Ecowitt.indigoPlugin` — Indigo will install it automatically
 4. In Indigo: **Plugins → Manage Plugins → Enable** Ecowitt Weather Station
 5. Open **Plugins → Ecowitt Weather Station → Configure** and fill in any required fields
+
+---
+
+## Device types
+
+The plugin creates devices from what the station actually uploads, so you do not
+pick a type by hand. Fifteen types are defined:
+
+| Device | What it reports |
+|---|---|
+| Ecowitt Main Gateway | Station model, frequency, uptime, upload interval, and connection status (Live / Stale / Offline) |
+| Ecowitt Outdoor Sensor | Temperature and humidity, plus the computed dew point, VPD, feels-like and heat index |
+| Ecowitt Indoor Sensor | Indoor temperature and humidity, absolute and relative pressure |
+| Ecowitt Wind Sensor | Speed, gust, highest gust of the day, direction in degrees and as a compass point, plus the computed wind chill |
+| Ecowitt Rain Sensor | Rain rate, and event, hourly, daily, weekly, monthly, yearly and total rainfall |
+| Ecowitt Solar/UV Sensor | Solar radiation and UV index |
+| Ecowitt Multi-Channel Sensor | One device per channel — temperature and humidity |
+| Ecowitt Soil Sensor | Soil moisture, one device per channel |
+| Ecowitt PM2.5 Sensor | PM2.5, its 24-hour average, PM10 and CO2 |
+| Ecowitt Lightning Sensor | Strike count, distance to the last strike, and when it struck |
+| Ecowitt Leak Sensor | Wet or dry, one device per channel |
+| Ecowitt Water Level Sensor | Measured distance, water level in mm, and level as a percentage of tank height |
+| Ecowitt WH46 Air Quality | PM1, PM2.5, PM4, PM10, CO2, temperature and humidity |
+| Ecowitt WH52 Soil Sensor | Soil moisture, temperature and electrical conductivity |
+| Ecowitt WN38 WBGT Sensor | Black globe temperature and wet-bulb globe temperature |
+
+Dew point, VPD, feels-like, heat index and wind chill are worked out by the plugin
+from the readings the station already sends, so they need no extra hardware.
+
+Every device carries `lastUpdate` and `deviceOnline`. Sensors that run on a battery
+also carry a `battery` percentage, and most of those add a `batteryLow` flag.
 
 ---
 
@@ -63,6 +94,10 @@ it survives a restart. It defaults to ON.
 ---
 
 ## Recent changes
+
+**v2.4.2** — shared-utility refresh. Calling the log timestamp filter twice no longer double-stamps every line, a log call with mismatched placeholders keeps its arguments instead of dropping them, and the module now imports cleanly outside Indigo so the offline tests can exercise it.
+
+**v2.4.1** — log-level fix. Warnings and errors raised through the plugin's own log helper had been coming out as ordinary info lines, because Indigo wants a real logging level rather than the name of one and quietly ignores the name. The amber and red entries people rely on for diagnosis now show up as intended.
 
 **v2.4.0** — improvements building on the v2.3.0 fixes (test suite now 65 tests).
 
