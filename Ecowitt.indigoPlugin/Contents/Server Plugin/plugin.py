@@ -8,7 +8,7 @@
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Opus 4.8
 # Date:        21-07-2026
-# Version:     2.4.2
+# Version:     2.5.0
 #
 # v2.4.2 (21-07-2026): shared plugin_utils.py refreshed to v1.3 — the
 # estate-wide propagation of the four Appliance Monitor deep-review fixes.
@@ -347,6 +347,39 @@ def calculate_vpd(temp_c, humidity_pct):
         return str(round(max(0.0, vpd), 2))
     except Exception:
         return "0.0"
+
+
+def calculate_dew_point_c(temp_c, humidity_pct):
+    """Dew point in degC from temperature (degC) and humidity (%), or None.
+
+    The Magnus formula with the Sonntag coefficients, good to about 0.35 degC
+    across the range a garden ever sees.
+
+    This is computed rather than read because THIS STATION DOES NOT SEND IT.
+    The plugin has always published `dewPoint` from a `dewptf` payload field,
+    which is a Wunderground-protocol name; a gateway posting in the Ecowitt
+    protocol (here an HP2561AE running EasyWeatherPro V5.2.7) never sends it,
+    so the branch could not fire and the state sat at the 0.0 a freshly
+    created Number state is born with. That reads as a plausible measurement
+    rather than as missing data — 0.0 degC against 13.2 degC and 91% — which
+    is why it went unnoticed for so long. Any station that does send `dewptf`
+    still wins: this is the fallback, not the replacement.
+
+    Returns None rather than a number when the inputs cannot support one. A
+    humidity of zero has no dew point, and log(0) is not a temperature.
+    """
+    try:
+        t = float(temp_c)
+        rh = float(humidity_pct)
+    except (TypeError, ValueError):
+        return None
+    if rh <= 0.0 or rh > 100.0:
+        return None
+    b, c = 17.62, 243.12
+    gamma = math.log(rh / 100.0) + (b * t) / (c + t)
+    if gamma >= b:                      # would divide by zero or flip sign
+        return None
+    return (c * gamma) / (b - gamma)
 
 
 def calculate_heat_index(temp_f, humidity_pct):
@@ -1069,8 +1102,19 @@ class Plugin(indigo.PluginBase):
             if 'humidity' in data:
                 states.append({'key': 'humidity', 'value': str(data['humidity'])})
 
+            # Prefer the station's own figure; compute it when it is absent.
+            # See calculate_dew_point_c — an Ecowitt-protocol gateway never
+            # sends `dewptf`, so for most installs this is the computed path.
             if 'dewptf' in data:
                 states.append({'key': 'dewPoint', 'value': convert_temperature(data['dewptf'], self.temperature_unit, self.decimal_places)})
+            elif temp_c is not None and 'humidity' in data:
+                dew_c = calculate_dew_point_c(temp_c, data['humidity'])
+                if dew_c is not None:
+                    # Back to degF so the one conversion+rounding path is shared.
+                    states.append({'key': 'dewPoint',
+                                   'value': convert_temperature(dew_c * 9.0 / 5.0 + 32.0,
+                                                                self.temperature_unit,
+                                                                self.decimal_places)})
 
             # VPD calculated from outdoor temp + humidity (no extra hardware)
             if temp_c is not None and 'humidity' in data:

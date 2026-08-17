@@ -95,6 +95,8 @@ it survives a restart. It defaults to ON.
 
 ## Recent changes
 
+**v2.5.0** — the outdoor dew point is a real reading at last. It had always been published from a field the station never sends, so the state sat at 0.0 °C — which looks like a measurement rather than a gap, and had gone unnoticed for that reason. It is now worked out from the temperature and humidity the station does send, to about a third of a degree, and it reports nothing at all when the inputs cannot support an answer. A station that does send its own dew point still wins.
+
 **v2.4.2** — shared-utility refresh. Calling the log timestamp filter twice no longer double-stamps every line, a log call with mismatched placeholders keeps its arguments instead of dropping them, and the module now imports cleanly outside Indigo so the offline tests can exercise it.
 
 **v2.4.1** — log-level fix. Warnings and errors raised through the plugin's own log helper had been coming out as ordinary info lines, because Indigo wants a real logging level rather than the name of one and quietly ignores the name. The amber and red entries people rely on for diagnosis now show up as intended.
