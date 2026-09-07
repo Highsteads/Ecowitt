@@ -9,7 +9,7 @@ Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors,
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.5.0
+**Version:** 2.5.1
 
 ---
 
@@ -95,6 +95,8 @@ it survives a restart. It defaults to ON.
 
 ## Recent changes
 
+
+**v2.5.1** - **The settings dialog was stretched wider than its own window, so the help text beside each setting was cut off mid-sentence.** The short help that can be attached to a setting is drawn on a single line and never wraps, so the longest one decides how wide every row is — and the window cannot be widened past a fixed maximum. All eight long ones have moved into ordinary description paragraphs, which do wrap. Two new checks fail the build if any help text or setting label grows long enough to do it again. No setting or behaviour changed.
 **v2.5.0** — the outdoor dew point is a real reading at last. It had always been published from a field the station never sends, so the state sat at 0.0 °C — which looks like a measurement rather than a gap, and had gone unnoticed for that reason. It is now worked out from the temperature and humidity the station does send, to about a third of a degree, and it reports nothing at all when the inputs cannot support an answer. A station that does send its own dew point still wins.
 
 **v2.4.2** — shared-utility refresh. Calling the log timestamp filter twice no longer double-stamps every line, a log call with mismatched placeholders keeps its arguments instead of dropping them, and the module now imports cleanly outside Indigo so the offline tests can exercise it.

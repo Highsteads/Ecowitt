@@ -10,7 +10,9 @@
 
     <Field id="indigoServerIP" type="textfield" defaultValue="">
         <Label>Indigo Server IP Address:</Label>
-        <Description>Your Indigo server IP (e.g. 192.168.1.20). Leave blank for auto-detect. Enter this IP in your Ecowitt gateway settings.</Description>
+    </Field>
+    <Field id="label_indigoServerIP_info" type="label">
+        <Label>Your Indigo server IP (e.g. 192.168.1.20). Leave blank for auto-detect. Enter this IP in your Ecowitt gateway settings.</Label>
     </Field>
 
     <Field id="httpPort" type="textfield" defaultValue="8088">
@@ -137,7 +139,9 @@
 
     <Field id="batteryLowThreshold" type="textfield" defaultValue="20">
         <Label>Battery Low Threshold (%):</Label>
-        <Description>Trigger low-battery status when a sensor's battery is at or below this percentage (0-100). All sensors are normalised to a percentage, so this works across binary, 0-5 level and voltage sensors alike. Default: 20.</Description>
+    </Field>
+    <Field id="label_batteryLowThreshold_info" type="label">
+        <Label>Trigger low-battery status when a sensor's battery is at or below this percentage (0-100). All sensors are normalised to a percentage, so this works across binary, 0-5 level and voltage sensors alike. Default: 20.</Label>
     </Field>
 
     <Field id="updateInterval" type="textfield" defaultValue="30">
@@ -147,7 +151,9 @@
 
     <Field id="expectedPasskey" type="textfield" defaultValue="">
         <Label>Expected PASSKEY (optional):</Label>
-        <Description>If set, only pushes containing this exact PASSKEY are accepted. Loaded from IndigoSecrets.ECOWITT_PASSKEY first; this field is the fallback if that file is absent. Use the value shown on the Main Gateway device's `passkey` state. Leave blank to accept any.</Description>
+    </Field>
+    <Field id="label_expectedPasskey_info" type="label">
+        <Label>If set, only pushes containing this exact PASSKEY are accepted. Loaded from IndigoSecrets.ECOWITT_PASSKEY first; this field is the fallback if that file is absent. Use the value shown on the Main Gateway device's `passkey` state. Leave blank to accept any.</Label>
     </Field>
 
     <Field id="dataSep" type="separator"/>
@@ -161,12 +167,16 @@
 
     <Field id="enablePushover" type="checkbox" defaultValue="false">
         <Label>Enable Pushover Alerts:</Label>
-        <Description>Send a Pushover notification when any sensor battery goes low. Requires the Pushover plugin to be installed and enabled. Can also be toggled from the Plugin menu.</Description>
+    </Field>
+    <Field id="label_enablePushover_info" type="label">
+        <Label>Send a Pushover notification when any sensor battery goes low. Requires the Pushover plugin to be installed and enabled. Can also be toggled from the Plugin menu.</Label>
     </Field>
 
     <Field id="pushoverDevice" type="textfield" defaultValue="">
         <Label>Pushover Device Name:</Label>
-        <Description>Optional: name of a specific Pushover device to receive alerts. Leave blank to send to all your devices.</Description>
+    </Field>
+    <Field id="label_pushoverDevice_info" type="label">
+        <Label>Optional: name of a specific Pushover device to receive alerts. Leave blank to send to all your devices.</Label>
     </Field>
 
     <Field id="pushoverSep" type="separator"/>
@@ -180,12 +190,16 @@
 
     <Field id="enableLDS" type="checkbox" defaultValue="false">
         <Label>Enable LDS Water Level:</Label>
-        <Description>Enable support for the LDS01/LDS04 laser distance sensor used to measure water tank levels. Can also be toggled from the Plugin menu.</Description>
+    </Field>
+    <Field id="label_enableLDS_info" type="label">
+        <Label>Enable support for the LDS01/LDS04 laser distance sensor used to measure water tank levels. Can also be toggled from the Plugin menu.</Label>
     </Field>
 
     <Field id="ldsTankHeight" type="textfield" defaultValue="1000">
         <Label>Tank Height (mm):</Label>
-        <Description>Total internal height of your water tank in millimetres. The sensor measures distance from the sensor down to the water surface; this value converts it to a water level percentage. Default: 1000mm (1m).</Description>
+    </Field>
+    <Field id="label_ldsTankHeight_info" type="label">
+        <Label>Total internal height of your water tank in millimetres. The sensor measures distance from the sensor down to the water surface; this value converts it to a water level percentage. Default: 1000mm (1m).</Label>
     </Field>
 
     <Field id="ldsSep" type="separator"/>
@@ -199,7 +213,9 @@
 
     <Field id="enableTimestampLogging" type="checkbox" defaultValue="true">
         <Label>Enable Timestamp in Logs:</Label>
-        <Description>Prefix all log messages with [HH:MM:SS]. Disable if you prefer Indigo's own column timestamps only. Also toggleable from the Plugin menu.</Description>
+    </Field>
+    <Field id="label_enableTimestampLogging_info" type="label">
+        <Label>Prefix all log messages with [HH:MM:SS]. Disable if you prefer Indigo's own column timestamps only. Also toggleable from the Plugin menu.</Label>
     </Field>
 
     <Field id="showDebugInfo" type="checkbox" defaultValue="false">
