@@ -6,9 +6,9 @@
 #              Compatible with Ecowitt, Fine Offset, Ambient Weather, Froggit,
 #              Aercus Instruments, Bresser and other brands using the same protocol.
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
-# Author:      CliveS & Claude Opus 4.8
-# Date:        21-07-2026
-# Version:     2.5.1
+# Author:      CliveS & Claude Fable 5.1
+# Date:        11-09-2026
+# Version:     2.5.2
 #
 # v2.4.2 (21-07-2026): shared plugin_utils.py refreshed to v1.3 — the
 # estate-wide propagation of the four Appliance Monitor deep-review fixes.

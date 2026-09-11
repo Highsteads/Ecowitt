@@ -10,7 +10,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>https://github.com/Highsteads/EcowittWeather</string>
+			<string>https://github.com/Highsteads/Ecowitt</string>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
@@ -20,12 +20,12 @@
 		<key>Owner</key>
 		<string>Highsteads</string>
 		<key>Repo</key>
-		<string>EcowittWeather</string>
+		<string>Ecowitt</string>
 	</dict>
 	<key>IwsApiVersion</key>
 	<string>1.0.0</string>
 	<key>PluginVersion</key>
-	<string>2.5.1</string>
+	<string>2.5.2</string>
 	<key>ServerApiVersion</key>
 	<string>3.4</string>
 </dict>
