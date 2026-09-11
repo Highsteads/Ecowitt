@@ -9,7 +9,7 @@ Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors,
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.5.2
+**Version:** 2.5.3
 
 ---
 
@@ -95,6 +95,8 @@ it survives a restart. It defaults to ON.
 
 ## Recent changes
 
+
+**v2.5.3** - **The GitHub record inside the bundle now uses the standard spelling.** The plugin bundle carries a small record of where its source lives on GitHub. Ours spelt the two field names its own way, while the plugins Indigo Domotics and the community publish spell them `GithubUser` and `GithubRepo`. It now matches them. Nothing else changed.
 
 **v2.5.2** - **The plugin's About item pointed at a repository that does not exist.** Indigo builds the *About Ecowitt* menu item from the support address in the plugin bundle, and that address named a repository called EcowittWeather, which is not there. It now opens github.com/Highsteads/Ecowitt, where the releases and the issue tracker are. The bundle's GitHub owner and repository record carried the same wrong name and is corrected too. Nothing else changed.
 
