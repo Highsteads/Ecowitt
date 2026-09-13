@@ -8,7 +8,7 @@
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Fable 5.1
 # Date:        11-09-2026
-# Version:     2.5.4
+# Version:     2.5.5
 #
 # v2.4.2 (21-07-2026): shared plugin_utils.py refreshed to v1.3 — the
 # estate-wide propagation of the four Appliance Monitor deep-review fixes.
@@ -130,7 +130,7 @@ import os as _os
 import sys as _sys
 import threading
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import unquote
 
 _sys.path.insert(0, _os.getcwd())
@@ -497,6 +497,39 @@ def battery_to_percent(raw_value, field_name=""):
     # Single-cell voltage (soil/leaf/lds): 1.2V dead, 1.6V full.
     pct = (v - 1.2) / 0.4 * 100.0
     return max(0, min(100, int(round(pct))))
+
+
+def gateway_local_time(dateutc, fallback):
+    """The gateway's OWN reported instant, rendered as local wall-clock time.
+
+    Two things are wrong with using `dateutc` raw, and the Main Gateway device
+    was the only one doing it while every other device stamps datetime.now():
+
+      * it is URL-encoded, so it arrives as "2026-09-13+08:04:35" — that `+` is
+        an encoded space, and it was being displayed literally;
+      * it is, as the field name says, UTC. Shown unconverted it put the gateway
+        an hour behind its five siblings for the eight months of BST, which
+        reads as the gateway having stopped reporting.
+
+    `.astimezone()` with no argument converts to the host's local zone, so this
+    needs no timezone database and cannot fall back to a silently wrong UTC.
+
+    An absent or unparseable value returns the fallback: a timestamp we cannot
+    read is no reason to show nothing at all.
+    """
+    # A fast path, not the only net: an absent value would also fail the parse
+    # below and reach the same fallback, so a mutation removing this line does
+    # not change the answer (proven by the sweep on 13-09-2026). Kept because
+    # "no value is normal" is worth saying out loud rather than discovering via
+    # an exception.
+    if not dateutc:
+        return fallback
+    try:
+        text = str(dateutc).replace("+", " ").strip()
+        stamp = datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        return fallback
+    return stamp.replace(tzinfo=timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def lds_percent(dist_mm, tank_h):
@@ -890,7 +923,7 @@ class Plugin(indigo.PluginBase):
                 {'key': 'model',            'value': str(data.get('model', 'Unknown'))},
                 {'key': 'frequency',        'value': str(data.get('freq', 'Unknown'))},
                 {'key': 'passkey',          'value': str(data.get('PASSKEY', 'Unknown'))},
-                {'key': 'lastUpdate',       'value': str(data.get('dateutc', now.strftime('%Y-%m-%d %H:%M:%S')))},
+                {'key': 'lastUpdate',       'value': gateway_local_time(data.get('dateutc'), now.strftime('%Y-%m-%d %H:%M:%S'))},
                 {'key': 'runtime',          'value': str(data.get('runtime', '0'))},
                 {'key': 'interval',         'value': str(data.get('interval', 'Unknown'))},
                 {'key': 'deviceOnline',     'value': True},
