@@ -9,7 +9,7 @@ Indigo plugin for Ecowitt weather stations — discovers indoor/outdoor sensors,
 
 *Developed and tested on Indigo 2025.2 / Python 3.13. Older Indigo releases that meet the minimum API version above should also work — the API floor is what Indigo's plugin loader actually checks.*
 **Bundle ID:** `com.clives.indigoplugin.ecowitt`
-**Version:** 2.5.3
+**Version:** 2.5.4
 
 ---
 
@@ -95,6 +95,8 @@ it survives a restart. It defaults to ON.
 
 ## Recent changes
 
+
+**v2.5.4** - **Renaming a sensor no longer leaves you with a duplicate.** The plugin looked its devices up by name, so the moment you renamed one - "Multi-Channel 3" to "Dining Room", say - it could no longer find it. The next reading created a second device alongside, and the one you had renamed sat frozen on its last reading with nothing to say it had stopped. It now looks devices up by their address, which never changes, so a rename sticks. Devices made before this have no address stored, so the plugin fills that in the first time it sees them and they are safe from then on.
 
 **v2.5.3** - **The GitHub record inside the bundle now uses the standard spelling.** The plugin bundle carries a small record of where its source lives on GitHub. Ours spelt the two field names its own way, while the plugins Indigo Domotics and the community publish spell them `GithubUser` and `GithubRepo`. It now matches them. Nothing else changed.
 

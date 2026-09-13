@@ -8,7 +8,7 @@
 #              Tested with: Ecowitt HP2561 (7-in-1 Wi-Fi Solar Weather Station)
 # Author:      CliveS & Claude Fable 5.1
 # Date:        11-09-2026
-# Version:     2.5.3
+# Version:     2.5.4
 #
 # v2.4.2 (21-07-2026): shared plugin_utils.py refreshed to v1.3 — the
 # estate-wide propagation of the four Appliance Monitor deep-review fixes.
@@ -1853,10 +1853,46 @@ class Plugin(indigo.PluginBase):
 
             full_name = self.build_device_name(name, station_id)
 
-            # Search existing Indigo devices by name
+            # Search by ADDRESS first. The address is the stable identity — it is
+            # what the device was created with and it never changes — whereas the
+            # NAME is the first thing a user edits ("Multi-Channel 3" is not a
+            # room). Matching on name alone meant a rename orphaned the device
+            # and the next payload silently created a duplicate alongside it,
+            # leaving the renamed one frozen on its last reading. Found
+            # 13-09-2026 while preparing for a set of WN31 sensors, where
+            # renaming each channel to its room is the very first thing anyone
+            # would do.
+            for dev in indigo.devices.iter(f"self.{device_type}"):
+                if device_id and dev.address == device_id:
+                    self.device_list[device_id] = dev.id
+                    return dev
+
+            # Fall back to the name, for devices created before this plugin set
+            # an address (several on this estate carry a blank one). Backfill the
+            # address while we are here, so each such device is matched by
+            # address from then on and survives its first rename.
             for dev in indigo.devices.iter(f"self.{device_type}"):
                 if dev.name == full_name:
                     self.device_list[device_id] = dev.id
+                    if device_id and not dev.address:
+                        # The native `address` attribute is READ-ONLY once a
+                        # device exists ("the attribute address is read-only on
+                        # this instance") — it can only be set at create() time.
+                        # The writable route is a plugin prop literally named
+                        # `address`, which Indigo reflects into the native field;
+                        # that is how the Indoor Sensor carries one. Merge into
+                        # the existing props rather than replacing them, because
+                        # replacePluginPropsOnServer REPLACES the whole dict.
+                        try:
+                            props = dict(dev.pluginProps)
+                            props["address"] = device_id
+                            dev.replacePluginPropsOnServer(props)
+                            log(f"Backfilled address '{device_id}' on '{dev.name}'")
+                        except Exception as e:
+                            # Never let a tidy-up break the update path, and say
+                            # so once rather than every restart.
+                            log(f"Could not backfill address on '{dev.name}': {e}",
+                                "WARNING")
                     return dev
 
             # Auto-create disabled — do not create
